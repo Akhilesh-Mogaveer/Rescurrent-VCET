@@ -22,6 +22,15 @@ import {
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import type { DryWindow, WeatherMeta } from '../types';
+import {
+  ActionStatusLine,
+  InlineError,
+  SkeletonBlock,
+  SkeletonCard,
+  SkeletonChart,
+  useDelayedLoading,
+  useLoadTimeout,
+} from '../components/Skeleton';
 
 export const RainGapPage: React.FC = () => {
   const { pushToast } = useApp();
@@ -40,9 +49,16 @@ export const RainGapPage: React.FC = () => {
   const [minProb, setMinProb] = useState<number>(0.6);
   const [loading, setLoading] = useState<boolean>(true);
   const [fetchingLive, setFetchingLive] = useState<boolean>(false);
+  const [liveDone, setLiveDone] = useState<boolean>(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState<boolean>(false);
+
+  const showSkeleton = useDelayedLoading(loading);
+  useLoadTimeout(loading, () => setTimedOut(true), 20000);
 
   const loadForecast = async (setId?: number | null) => {
     setLoading(true);
+    setTimedOut(false);
     try {
       const st = await apiRequest('/forecast/status');
       setStatusData(st);
@@ -70,6 +86,8 @@ export const RainGapPage: React.FC = () => {
 
   const handleFetchLive = async () => {
     setFetchingLive(true);
+    setLiveDone(false);
+    setLiveError(null);
     try {
       const res = await apiRequest('/forecast/refresh', { method: 'POST' });
       if (res.refreshed) {
@@ -80,6 +98,8 @@ export const RainGapPage: React.FC = () => {
         );
         setSelectedSetId(res.scenario_set.id);
         await loadForecast(res.scenario_set.id);
+        setLiveDone(true);
+        setTimeout(() => setLiveDone(false), 2500);
       } else {
         pushToast(
           'Live API Unreachable — Cached/Demo Active',
@@ -87,8 +107,11 @@ export const RainGapPage: React.FC = () => {
           'warning',
         );
         await loadForecast(res.scenario_set?.id);
+        setLiveDone(true);
+        setTimeout(() => setLiveDone(false), 2500);
       }
     } catch (err: any) {
+      setLiveError(err.message || 'Could not reach Open-Meteo');
       pushToast('Live Fetch Failed', err.message || 'Could not reach Open-Meteo', 'error');
     } finally {
       setFetchingLive(false);
@@ -109,8 +132,51 @@ export const RainGapPage: React.FC = () => {
     }
   };
 
-  if (loading && !scenarioData) {
-    return <div className="p-12 text-center text-sm text-stone-600">Loading Rain-Gap Twin...</div>;
+  if (!scenarioData) {
+    if (timedOut || (!loading && !scenarioData)) {
+      return (
+        <div className="p-6">
+          <InlineError
+            target="Rain-Gap weather forecast"
+            message={timedOut ? 'Request timed out after 20s. Could not load weather forecast.' : undefined}
+            onRetry={() => loadForecast()}
+          />
+        </div>
+      );
+    }
+
+    if (loading || showSkeleton) {
+      return (
+        <div aria-busy="true" className="space-y-6">
+          {/* Header Skeleton */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-3">
+            <div className="flex items-center gap-2">
+              <SkeletonBlock height={20} width={220} radius={999} />
+              <SkeletonBlock height={14} width={280} />
+            </div>
+            <SkeletonBlock height={28} width="65%" />
+            <SkeletonBlock height={14} width="50%" />
+          </div>
+          {/* Controls Skeleton */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <SkeletonCard height={80} />
+              <SkeletonCard height={80} />
+              <SkeletonCard height={80} />
+              <SkeletonCard height={80} />
+            </div>
+          </div>
+          {/* Chart Block Skeleton */}
+          <SkeletonChart height={340} />
+          {/* Window Cards Skeleton */}
+          <div className="grid md:grid-cols-3 gap-4">
+            <SkeletonCard height={140} />
+            <SkeletonCard height={140} />
+            <SkeletonCard height={140} />
+          </div>
+        </div>
+      );
+    }
   }
 
   const meta: WeatherMeta | undefined = scenarioData?.meta;
@@ -169,7 +235,7 @@ export const RainGapPage: React.FC = () => {
             Rain-Gap Twin — Ensemble Rainfall Uncertainty & Feasible Work Windows
           </h1>
           <p className="text-xs text-stone-600 mt-1">
-            Geographic coverage: [{meta?.request_location?.join(', ')}] (Thirthahalli cluster) ·
+            Geographic coverage: [{meta?.request_location?.join(', ')}] ·
             Fetched: {meta?.fetched_at ? new Date(meta.fetched_at).toLocaleString() : '-'} · Horizon
             start: {meta?.horizon_start ? new Date(meta.horizon_start).toLocaleString() : '-'}
           </p>
@@ -182,13 +248,21 @@ export const RainGapPage: React.FC = () => {
             className="px-4 py-2 rounded-xl bg-[#0C1F17] hover:bg-emerald-950 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${fetchingLive ? 'animate-spin' : ''}`} />
-            {fetchingLive ? 'Contacting Open-Meteo...' : 'Fetch Live Open-Meteo Ensemble'}
+            {fetchingLive ? 'Fetching...' : 'Fetch Live Open-Meteo Ensemble'}
           </button>
+          <ActionStatusLine
+            isRunning={fetchingLive}
+            actionName="Fetching live ensemble"
+            isDone={liveDone}
+            error={liveError}
+            onRetry={handleFetchLive}
+          />
           <button
             onClick={() => handleGenerateSynthetic(108, 1.25)}
+            title="Seed 108"
             className="px-3.5 py-2 rounded-xl border border-stone-300 hover:bg-stone-100 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Replay Heavy Spell (Seed 108)
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Replay heavy-rain scenario
           </button>
         </div>
       </div>

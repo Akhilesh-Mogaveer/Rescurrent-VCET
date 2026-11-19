@@ -15,6 +15,15 @@ import {
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import type { CrewItem, EquipmentItem, PlanItem, PlotItem } from '../types';
+import {
+  ActionStatusLine,
+  EmptyState,
+  InlineError,
+  SkeletonCard,
+  SkeletonTable,
+  useDelayedLoading,
+  useLoadTimeout,
+} from '../components/Skeleton';
 
 export const ReplanningPage: React.FC = () => {
   const { pushToast, refreshNotifications } = useApp();
@@ -44,8 +53,17 @@ export const ReplanningPage: React.FC = () => {
   const [targetTaskKey, setTargetTaskKey] = useState<string>('');
   const [extraMinutes, setExtraMinutes] = useState<number>(60);
   const [running, setRunning] = useState<boolean>(false);
+  const [replanDone, setReplanDone] = useState<boolean>(false);
+  const [replanError, setReplanError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [timedOut, setTimedOut] = useState<boolean>(false);
+
+  const showSkeleton = useDelayedLoading(loading);
+  useLoadTimeout(loading, () => setTimedOut(true), 20000);
 
   const loadContext = async (planId?: number) => {
+    setLoading(true);
+    setTimedOut(false);
     try {
       const [pList, cList, eList, plList] = await Promise.all([
         apiRequest<PlanItem[]>('/plans'),
@@ -73,6 +91,8 @@ export const ReplanningPage: React.FC = () => {
       }
     } catch (err: any) {
       pushToast('Load Error', err.message, 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -121,6 +141,8 @@ export const ReplanningPage: React.FC = () => {
   const handleTriggerReplan = async () => {
     if (!basePlan) return;
     setRunning(true);
+    setReplanDone(false);
+    setReplanError(null);
     try {
       const payload = buildPayload();
       const res = await apiRequest(`/plans/${basePlan.id}/replan`, {
@@ -137,12 +159,15 @@ export const ReplanningPage: React.FC = () => {
       setBasePlan(res.new_plan);
       await loadContext(res.new_plan.id);
       await refreshNotifications();
+      setReplanDone(true);
+      setTimeout(() => setReplanDone(false), 2500);
       pushToast(
         'Dynamic Replanning Complete',
         `Saved Plan #${res.new_plan.id} (v${res.new_plan.version}). Completed tasks frozen; remaining schedule validated.`,
         'success',
       );
     } catch (err: any) {
+      setReplanError(err.message || 'Replanning failed');
       pushToast('Replanning Failed', err.message, 'error');
     } finally {
       setRunning(false);
@@ -187,8 +212,34 @@ export const ReplanningPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Disruption Selector + Parameters */}
-      <div className="grid lg:grid-cols-12 gap-6">
+      {!basePlan && (
+        timedOut ? (
+          <InlineError
+            target="base plan for replanning"
+            message="Request timed out after 20s. Could not load base plan."
+            onRetry={() => loadContext()}
+          />
+        ) : loading || showSkeleton ? (
+          <div aria-busy="true" className="space-y-6">
+            <div className="grid lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-7"><SkeletonCard height={300} /></div>
+              <div className="lg:col-span-5"><SkeletonCard height={300} /></div>
+            </div>
+            <SkeletonTable rows={5} cols={6} />
+          </div>
+        ) : (
+          <EmptyState
+            message="No baseline schedule found. Generate a plan first."
+            to="/planner"
+            actionLabel="Go to Planner"
+          />
+        )
+      )}
+
+      {basePlan && (
+        <>
+          {/* Disruption Selector + Parameters */}
+          <div className="grid lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-4">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
             <Compass className="w-4 h-4 text-emerald-700" />
@@ -404,16 +455,26 @@ export const ReplanningPage: React.FC = () => {
               </div>
             )}
 
-            <button
-              onClick={handleTriggerReplan}
-              disabled={running || !basePlan}
-              className="w-full py-3 rounded-xl bg-[#0C1F17] hover:bg-emerald-950 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              {running
-                ? 'Freezing Completed Work & Re-Optimizing...'
-                : `Trigger ${disruptionType.toUpperCase()} & Replan From Plan #${basePlan?.id}`}
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={handleTriggerReplan}
+                disabled={running || !basePlan}
+                className="w-full py-3 rounded-xl bg-[#0C1F17] hover:bg-emerald-950 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                {running
+                  ? 'Freezing Completed Work & Re-Optimizing...'
+                  : `Trigger ${disruptionType.toUpperCase()} & Replan From Plan #${basePlan?.id}`}
+              </button>
+              <ActionStatusLine
+                isRunning={running}
+                actionName="Replanning"
+                timeLimit={6}
+                isDone={replanDone}
+                error={replanError}
+                onRetry={handleTriggerReplan}
+              />
+            </div>
           </div>
         </div>
 
@@ -533,6 +594,8 @@ export const ReplanningPage: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
-  );
+    </>
+  )}
+</div>
+);
 };

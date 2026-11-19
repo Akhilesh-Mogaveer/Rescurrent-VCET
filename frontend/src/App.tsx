@@ -8,6 +8,7 @@ import { CrewGanttPage } from './pages/CrewGanttPage';
 import { CrewsEquipmentPage } from './pages/CrewsEquipmentPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { GovernancePage } from './pages/GovernancePage';
+import { GrowerHomePage } from './pages/GrowerHomePage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { OperationsPlannerPage } from './pages/OperationsPlannerPage';
 import { PlotsPage } from './pages/PlotsPage';
@@ -49,10 +50,41 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+function getRoleHome(role?: string): string {
+  if (role === 'farmer') return '/grower';
+  if (role === 'admin') return '/governance';
+  return '/';
+}
+
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useApp();
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+};
+
+const RoleHomeRedirect: React.FC = () => {
+  const { user } = useApp();
+  if (user?.role === 'farmer') {
+    return <Navigate to="/grower" replace />;
+  }
+  if (user?.role === 'admin') {
+    return <Navigate to="/governance" replace />;
+  }
+  return <DashboardPage />;
+};
+
+const RequireRole: React.FC<{
+  allowedRoles: ('coordinator' | 'farmer' | 'admin')[];
+  children: React.ReactNode;
+}> = ({ allowedRoles, children }) => {
+  const { user } = useApp();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!allowedRoles.includes(user.role)) {
+    return <Navigate to={getRoleHome(user.role)} replace />;
   }
   return <>{children}</>;
 };
@@ -72,19 +104,111 @@ export function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<DashboardPage />} />
-              <Route path="rain-gap" element={<RainGapPage />} />
-              <Route path="risk-twin" element={<RiskTwinPage />} />
-              <Route path="plots" element={<PlotsPage />} />
-              <Route path="crews" element={<CrewsEquipmentPage />} />
-              <Route path="planner" element={<OperationsPlannerPage />} />
-              <Route path="gantt" element={<CrewGanttPage />} />
-              <Route path="policy-arena" element={<PolicyArenaPage />} />
-              <Route path="replanning" element={<ReplanningPage />} />
-              <Route path="assistant" element={<AssistantPage />} />
-              <Route path="governance" element={<GovernancePage />} />
-              <Route path="notifications" element={<NotificationsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
+              <Route index element={<RoleHomeRedirect />} />
+              <Route
+                path="grower"
+                element={
+                  <RequireRole allowedRoles={['farmer']}>
+                    <GrowerHomePage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="rain-gap"
+                element={
+                  <RequireRole allowedRoles={['farmer', 'coordinator', 'admin']}>
+                    <RainGapPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="risk-twin"
+                element={
+                  <RequireRole allowedRoles={['admin']}>
+                    <RiskTwinPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="plots"
+                element={
+                  <RequireRole allowedRoles={['farmer', 'coordinator']}>
+                    <PlotsPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="crews"
+                element={
+                  <RequireRole allowedRoles={['coordinator']}>
+                    <CrewsEquipmentPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="planner"
+                element={
+                  <RequireRole allowedRoles={['coordinator']}>
+                    <OperationsPlannerPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="gantt"
+                element={
+                  <RequireRole allowedRoles={['coordinator']}>
+                    <CrewGanttPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="policy-arena"
+                element={
+                  <RequireRole allowedRoles={['coordinator', 'admin']}>
+                    <PolicyArenaPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="replanning"
+                element={
+                  <RequireRole allowedRoles={['coordinator']}>
+                    <ReplanningPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="assistant"
+                element={
+                  <RequireRole allowedRoles={['coordinator']}>
+                    <AssistantPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="governance"
+                element={
+                  <RequireRole allowedRoles={['admin']}>
+                    <GovernancePage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="notifications"
+                element={
+                  <RequireRole allowedRoles={['farmer', 'coordinator', 'admin']}>
+                    <NotificationsPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="settings"
+                element={
+                  <RequireRole allowedRoles={['farmer', 'coordinator', 'admin']}>
+                    <SettingsPage />
+                  </RequireRole>
+                }
+              />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

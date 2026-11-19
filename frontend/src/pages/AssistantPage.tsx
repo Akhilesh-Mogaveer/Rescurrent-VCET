@@ -125,29 +125,6 @@ export const AssistantPage: React.FC = () => {
             </select>
           </div>
         </div>
-
-        {/* Architecture Pipeline Step Badges */}
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-mono bg-stone-50 p-3 rounded-xl border border-stone-200 text-stone-700">
-          <span className="px-2 py-0.5 rounded bg-white border border-stone-200">
-            1. User Message
-          </span>
-          <span>→</span>
-          <span className="px-2 py-0.5 rounded bg-white border border-stone-200">
-            2. Optional Gemini / Rule Parser
-          </span>
-          <span>→</span>
-          <span className="px-2 py-0.5 rounded bg-white border border-stone-200">
-            3. Pydantic Schema & Business Validation
-          </span>
-          <span>→</span>
-          <span className="px-2 py-0.5 rounded bg-white border border-stone-200">
-            4. User Confirmation
-          </span>
-          <span>→</span>
-          <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold">
-            5. OR-Tools CP-SAT + Independent Validator
-          </span>
-        </div>
       </div>
 
       {/* Suggested Question Chips */}
@@ -239,8 +216,19 @@ export const AssistantPage: React.FC = () => {
             </div>
           ))}
           {loading && (
-            <div className="text-xs text-stone-500 italic">
-              Computing explanation from validated twin & optimizer records...
+            <div className="flex justify-start">
+              <div
+                role="status"
+                aria-label="Assistant is thinking"
+                className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 flex items-center gap-2"
+              >
+                <span className="text-xs text-stone-600 font-medium">Assistant is thinking</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce [animation-delay:0ms]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce [animation-delay:150ms]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce [animation-delay:300ms]" />
+                </div>
+              </div>
             </div>
           )}
         </div>

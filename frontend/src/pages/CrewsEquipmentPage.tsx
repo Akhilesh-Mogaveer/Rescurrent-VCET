@@ -11,6 +11,15 @@ import {
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import type { CrewItem, EquipmentItem, TaskRuleItem } from '../types';
+import {
+  EmptyState,
+  InlineError,
+  SkeletonBlock,
+  SkeletonCard,
+  SkeletonTable,
+  useDelayedLoading,
+  useLoadTimeout,
+} from '../components/Skeleton';
 
 export const CrewsEquipmentPage: React.FC = () => {
   const { pushToast } = useApp();
@@ -19,6 +28,11 @@ export const CrewsEquipmentPage: React.FC = () => {
   const [rules, setRules] = useState<TaskRuleItem[]>([]);
   const [conflicts, setConflicts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
+
+  const showSkeleton = useDelayedLoading(loading);
+  useLoadTimeout(loading, () => setTimedOut(true), 20000);
 
   const [newCrew, setNewCrew] = useState({
     code: 'C-05',
@@ -39,6 +53,8 @@ export const CrewsEquipmentPage: React.FC = () => {
 
   const loadAll = async () => {
     setLoading(true);
+    setLoadError(null);
+    setTimedOut(false);
     try {
       const [cList, eList, rList, conf] = await Promise.all([
         apiRequest<CrewItem[]>('/crews'),
@@ -51,6 +67,7 @@ export const CrewsEquipmentPage: React.FC = () => {
       setRules(rList);
       setConflicts(conf.conflicts || []);
     } catch (err: any) {
+      setLoadError(err.message || 'Failed to load resources');
       pushToast('Resource Load Error', err.message, 'error');
     } finally {
       setLoading(false);
@@ -133,12 +150,40 @@ export const CrewsEquipmentPage: React.FC = () => {
     }
   };
 
-  if (loading && !crews.length) {
-    return (
-      <div className="p-12 text-center text-xs text-stone-500">
-        Loading Crews, Equipment & Operational Rules...
-      </div>
-    );
+  if (!crews.length) {
+    if (timedOut || (loadError && !crews.length)) {
+      return (
+        <div className="p-6">
+          <InlineError
+            target="crews, equipment & rules"
+            message={timedOut ? 'Request timed out after 20s. Could not load crews & equipment.' : undefined}
+            onRetry={loadAll}
+          />
+        </div>
+      );
+    }
+
+    if (loading || showSkeleton) {
+      return (
+        <div aria-busy="true" className="space-y-6">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-3">
+            <SkeletonBlock height={28} width="50%" />
+            <SkeletonBlock height={14} width="70%" />
+          </div>
+          {/* Crew Cards Skeleton */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <SkeletonCard height={170} />
+            <SkeletonCard height={170} />
+            <SkeletonCard height={170} />
+            <SkeletonCard height={170} />
+          </div>
+          {/* Equipment Table Skeleton */}
+          <SkeletonTable rows={4} cols={5} />
+          {/* Operational Rules Table Skeleton */}
+          <SkeletonTable rows={3} cols={6} />
+        </div>
+      );
+    }
   }
 
   return (
@@ -190,47 +235,51 @@ export const CrewsEquipmentPage: React.FC = () => {
           </h2>
 
           <div className="space-y-3">
-            {crews.map((c) => (
-              <div
-                key={c.id}
-                className="p-4 rounded-xl border border-stone-200 bg-stone-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-sm text-[#17211C]">{c.code}</span>
-                    <span className="font-bold text-[#17211C]">{c.name}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        c.is_available
-                          ? 'bg-emerald-100 text-emerald-900'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {c.is_available ? 'Available' : 'Unavailable'}
-                    </span>
-                  </div>
-                  <div className="text-stone-600 mt-1">
-                    Leader: <strong>{c.leader || 'Assigned'}</strong> · Size: {c.size} · Shift:{' '}
-                    {c.shift_start_hour}:00–{c.shift_end_hour}:00 IST · Max {c.max_hours_per_day}
-                    h/day
-                  </div>
-                  <div className="text-[11px] text-stone-500 mt-0.5">
-                    Eligible Tasks: <strong>{c.eligibility.join(', ')}</strong> · Scheduled Tasks in
-                    Active Plan: <strong>{c.scheduled_task_count || 0}</strong>
-                  </div>
-                </div>
-                <button
-                  onClick={() => toggleCrewAvailability(c)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 cursor-pointer ${
-                    c.is_available
-                      ? 'border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
-                      : 'bg-emerald-700 text-white hover:bg-emerald-600'
-                  }`}
+            {crews.length === 0 ? (
+              <EmptyState message="No field crews configured yet." />
+            ) : (
+              crews.map((c) => (
+                <div
+                  key={c.id}
+                  className="p-4 rounded-xl border border-stone-200 bg-stone-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                 >
-                  {c.is_available ? 'Mark Unavailable' : 'Restore Available'}
-                </button>
-              </div>
-            ))}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-sm text-[#17211C]">{c.code}</span>
+                      <span className="font-bold text-[#17211C]">{c.name}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          c.is_available
+                            ? 'bg-emerald-100 text-emerald-900'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {c.is_available ? 'Available' : 'Unavailable'}
+                      </span>
+                    </div>
+                    <div className="text-stone-600 mt-1">
+                      Leader: <strong>{c.leader || 'Assigned'}</strong> · Size: {c.size} · Shift:{' '}
+                      {c.shift_start_hour}:00–{c.shift_end_hour}:00 IST · Max {c.max_hours_per_day}
+                      h/day
+                    </div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">
+                      Eligible Tasks: <strong>{c.eligibility.join(', ')}</strong> · Scheduled Tasks in
+                      Active Plan: <strong>{c.scheduled_task_count || 0}</strong>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleCrewAvailability(c)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 cursor-pointer ${
+                      c.is_available
+                        ? 'border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+                        : 'bg-emerald-700 text-white hover:bg-emerald-600'
+                    }`}
+                  >
+                    {c.is_available ? 'Mark Unavailable' : 'Restore Available'}
+                  </button>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Quick Add Crew Form */}

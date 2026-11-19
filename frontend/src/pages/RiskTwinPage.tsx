@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   CartesianGrid,
   Legend,
@@ -12,6 +13,16 @@ import {
 import { Activity, AlertCircle, Play, ShieldAlert, Sliders } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
+import {
+  ActionStatusLine,
+  InlineError,
+  SkeletonBlock,
+  SkeletonCard,
+  SkeletonChart,
+  SkeletonTable,
+  useDelayedLoading,
+  useLoadTimeout,
+} from '../components/Skeleton';
 
 export const RiskTwinPage: React.FC = () => {
   const { pushToast } = useApp();
@@ -20,9 +31,18 @@ export const RiskTwinPage: React.FC = () => {
   const [selectedPlotId, setSelectedPlotId] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [running, setRunning] = useState<boolean>(false);
+  const [simDone, setSimDone] = useState<boolean>(false);
+  const [simError, setSimError] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState<boolean>(false);
+
+  const showSkeleton = useDelayedLoading(loading);
+  useLoadTimeout(loading, () => setTimedOut(true), 20000);
 
   const runSimulation = async (sens: 'low' | 'base' | 'high') => {
     setRunning(true);
+    setSimDone(false);
+    setSimError(null);
+    setTimedOut(false);
     try {
       const res = await apiRequest('/simulations', {
         method: 'POST',
@@ -32,12 +52,15 @@ export const RiskTwinPage: React.FC = () => {
       if (!selectedPlotId && res.priority_queue?.length) {
         setSelectedPlotId(res.priority_queue[0].plot_id);
       }
+      setSimDone(true);
+      setTimeout(() => setSimDone(false), 2500);
       pushToast(
         'Twin Simulation Executed',
         `Model ${res.parameter_set.version} completed in ${res.duration_ms} ms (input hash ${res.input_hash.slice(0, 10)})`,
         'success',
       );
     } catch (err: any) {
+      setSimError(err.message || 'Simulation failed');
       pushToast('Simulation Failed', err.message, 'error');
     } finally {
       setRunning(false);
@@ -49,12 +72,39 @@ export const RiskTwinPage: React.FC = () => {
     runSimulation(sensitivity);
   }, []);
 
-  if (loading && !simData) {
-    return (
-      <div className="p-12 text-center text-sm text-stone-600">
-        Loading Agricultural Risk & Protection Twin...
-      </div>
-    );
+  if (!simData) {
+    if (timedOut || (!loading && !simData)) {
+      return (
+        <div className="p-6">
+          <InlineError
+            target="Risk & Protection Twin"
+            message={timedOut ? 'Request timed out after 20s. Could not load Risk Twin simulation.' : undefined}
+            onRetry={() => runSimulation(sensitivity)}
+          />
+        </div>
+      );
+    }
+
+    if (loading || showSkeleton) {
+      return (
+        <div aria-busy="true" className="space-y-6">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-3">
+            <SkeletonBlock height={20} width={250} radius={999} />
+            <SkeletonBlock height={28} width="60%" />
+            <SkeletonBlock height={14} width="70%" />
+          </div>
+          <div className="grid lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-4">
+              <SkeletonCard height={320} />
+            </div>
+            <div className="lg:col-span-8">
+              <SkeletonChart height={320} />
+            </div>
+          </div>
+          <SkeletonTable rows={6} cols={6} />
+        </div>
+      );
+    }
   }
 
   const summaries: any[] = simData?.summaries || [];
@@ -83,11 +133,10 @@ export const RiskTwinPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300">
-                MODEL ASSUMPTION & SIMULATED RESULT
+                MODEL ASSUMPTION
               </span>
               <span className="text-xs font-mono text-stone-600">
-                Version: {simData?.parameter_set?.version} · Hash:{' '}
-                {simData?.input_hash?.slice(0, 12)}
+                Version: {simData?.parameter_set?.version}
               </span>
             </div>
             <h1 className="text-2xl font-bold text-[#17211C] mt-2">
@@ -120,11 +169,18 @@ export const RiskTwinPage: React.FC = () => {
             <button
               onClick={() => runSimulation(sensitivity)}
               disabled={running}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
               {running ? 'Simulating...' : 'Re-Run Twin'}
             </button>
+            <ActionStatusLine
+              isRunning={running}
+              actionName="Simulating"
+              isDone={simDone}
+              error={simError}
+              onRetry={() => runSimulation(sensitivity)}
+            />
           </div>
         </div>
 
@@ -292,22 +348,23 @@ export const RiskTwinPage: React.FC = () => {
             )}
           </div>
 
-          {/* Active Parameter Configuration Grid */}
-          <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
-            <h3 className="text-sm font-bold text-[#17211C] flex items-center gap-2 mb-3">
-              <Sliders className="w-4 h-4 text-emerald-700" />
-              Active Conceptual Twin Parameters ({sensitivity.toUpperCase()} Sensitivity)
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
-              {Object.entries(params).map(([key, val]) => (
-                <div key={key} className="p-3 rounded-xl bg-stone-50 border border-stone-200">
-                  <div className="text-[11px] text-stone-500 font-mono truncate">{key}</div>
-                  <div className="text-sm font-bold text-[#17211C] mt-0.5">
-                    {typeof val === 'number' ? val.toFixed(3) : String(val)}
-                  </div>
-                </div>
-              ))}
+          {/* Link to Model Parameters in Governance */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-emerald-700" />
+                Model Parameters ({sensitivity.toUpperCase()} Sensitivity)
+              </h3>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Configured coefficients and physical assumptions are governed in the model registry.
+              </p>
             </div>
+            <Link
+              to="/governance"
+              className="px-3.5 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold flex items-center gap-1.5 self-start sm:self-center transition"
+            >
+              View model parameters
+            </Link>
           </div>
         </div>
       </div>

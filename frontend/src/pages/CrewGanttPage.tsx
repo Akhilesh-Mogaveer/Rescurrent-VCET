@@ -11,6 +11,14 @@ import {
 import { useApp } from '../context/AppContext';
 import { apiRequest, cacheApprovedPlan } from '../services/api';
 import type { AssignmentItem, CrewItem, PlanItem } from '../types';
+import {
+  EmptyState,
+  InlineError,
+  SkeletonBlock,
+  SkeletonCard,
+  useDelayedLoading,
+  useLoadTimeout,
+} from '../components/Skeleton';
 
 export const CrewGanttPage: React.FC = () => {
   const { pushToast, refreshNotifications } = useApp();
@@ -22,9 +30,14 @@ export const CrewGanttPage: React.FC = () => {
   const [plotFilter, setPlotFilter] = useState<string>('');
   const [selectedAsg, setSelectedAsg] = useState<AssignmentItem | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [timedOut, setTimedOut] = useState<boolean>(false);
+
+  const showSkeleton = useDelayedLoading(loading);
+  useLoadTimeout(loading, () => setTimedOut(true), 20000);
 
   const loadData = async (planId?: number) => {
     setLoading(true);
+    setTimedOut(false);
     try {
       const [pList, cList] = await Promise.all([
         apiRequest<PlanItem[]>('/plans'),
@@ -71,10 +84,48 @@ export const CrewGanttPage: React.FC = () => {
     }
   };
 
-  if (loading && !plan) {
+  if (!plan) {
+    if (timedOut || (!loading && !plan && plans.length === 0)) {
+      return (
+        <div className="p-6">
+          <EmptyState
+            message="No operations scheduled yet."
+            to="/planner"
+            actionLabel="Generate Plan with CP-SAT Optimizer"
+          />
+        </div>
+      );
+    }
+
+    if (loading || showSkeleton) {
+      return (
+        <div aria-busy="true" className="space-y-6">
+          <SkeletonCard height={120} />
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200">
+              <SkeletonBlock height={18} width={200} />
+              <SkeletonBlock height={14} width={120} />
+            </div>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center gap-4 py-3 border-b border-stone-100 last:border-b-0">
+                <SkeletonBlock height={20} width={100} />
+                <div className="flex-1 flex gap-2">
+                  <SkeletonBlock height={32} width="35%" radius={6} />
+                  <SkeletonBlock height={32} width="45%" radius={6} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="p-12 text-center text-xs text-stone-500">
-        Loading Interactive Crew Gantt Scheduler...
+      <div className="p-6">
+        <InlineError
+          target="crew gantt schedule"
+          onRetry={() => loadData()}
+        />
       </div>
     );
   }

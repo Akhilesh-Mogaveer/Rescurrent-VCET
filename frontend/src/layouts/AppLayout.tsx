@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
   Bell,
   Bot,
   CalendarClock,
+  ChevronDown,
+  ChevronRight,
   CloudRain,
   Compass,
   Cpu,
@@ -26,28 +28,110 @@ import {
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import { t } from '../utils/i18n';
+import { GenericPageSkeleton } from '../components/Skeleton';
 
 export const AppLayout: React.FC = () => {
   const { user, lang, setLang, logout, toasts, dismissToast, pushToast, unreadCount, refreshNotifications } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [runningDemo, setRunningDemo] = useState(false);
+  const [plotsCrewsOpen, setPlotsCrewsOpen] = useState(true);
+  const [scheduleOpen, setScheduleOpen] = useState(true);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const isDashboard = location.pathname === '/' || location.pathname === '/grower';
 
-  const navItems = [
-    { to: '/', icon: LayoutDashboard, label: t(lang, 'nav_dashboard') },
-    { to: '/rain-gap', icon: CloudRain, label: t(lang, 'nav_rain_gap') },
-    { to: '/risk-twin', icon: Activity, label: t(lang, 'nav_risk_twin') },
-    { to: '/plots', icon: MapPin, label: t(lang, 'nav_plots') },
-    { to: '/crews', icon: Users, label: t(lang, 'nav_crews') },
-    { to: '/planner', icon: Cpu, label: t(lang, 'nav_planner') },
-    { to: '/gantt', icon: CalendarClock, label: t(lang, 'nav_gantt') },
-    { to: '/policy-arena', icon: Scale, label: t(lang, 'nav_arena') },
-    { to: '/replanning', icon: Compass, label: t(lang, 'nav_replanning') },
-    { to: '/assistant', icon: Bot, label: t(lang, 'nav_assistant') },
-    { to: '/governance', icon: Database, label: t(lang, 'nav_governance') },
-    { to: '/notifications', icon: Bell, label: t(lang, 'nav_notifications'), badge: unreadCount },
-    { to: '/settings', icon: SettingsIcon, label: t(lang, 'nav_settings') },
-  ];
+  // Post-login full-screen splash: once per session (tracked with sessionStorage)
+  const [splashState, setSplashState] = useState<'showing' | 'fading' | 'hidden'>(() => {
+    if (!user) return 'hidden';
+    const alreadyShown = sessionStorage.getItem('ms_session_splash_shown');
+    if (alreadyShown) return 'hidden';
+    sessionStorage.setItem('ms_session_splash_shown', 'true');
+    return 'showing';
+  });
+  const [bgImageFailed, setBgImageFailed] = useState(false);
+
+  useEffect(() => {
+    if (splashState !== 'showing') return;
+
+    // Show for at least 700ms and at most 3s, then fade out over 300ms
+    const timer = setTimeout(() => {
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (prefersReduced) {
+        setSplashState('hidden');
+      } else {
+        setSplashState('fading');
+        setTimeout(() => {
+          setSplashState('hidden');
+        }, 300);
+      }
+    }, 1100);
+
+    return () => clearTimeout(timer);
+  }, [splashState]);
+
+  const splashImg =
+    user?.role === 'farmer'
+      ? '/roles/grower.webp'
+      : user?.role === 'admin'
+      ? '/roles/expert.webp'
+      : '/roles/coordinator.webp';
+
+  const splashText =
+    user?.role === 'farmer'
+      ? 'Loading your farm advisory'
+      : user?.role === 'admin'
+      ? 'Loading the governance center'
+      : 'Loading your command center';
+
+  // Close sidebar on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarOpen]);
+
+  // Trap focus inside overlay sidebar while open
+  useEffect(() => {
+    if (sidebarOpen && sidebarRef.current) {
+      const focusable = sidebarRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length > 0) {
+        focusable[0].focus();
+      }
+
+      const handleTabKey = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return;
+        const currentFocusables = sidebarRef.current?.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (!currentFocusables || currentFocusables.length === 0) return;
+        const first = currentFocusables[0];
+        const last = currentFocusables[currentFocusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      };
+
+      window.addEventListener('keydown', handleTabKey);
+      return () => window.removeEventListener('keydown', handleTabKey);
+    }
+  }, [sidebarOpen]);
+
 
   const handleOneClickDemo = async () => {
     setRunningDemo(true);
@@ -69,18 +153,38 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen flex bg-[#F6F5F0] text-[#17211C]">
-      {/* Mobile overlay */}
+      {/* Desktop 12px invisible hover strip along left edge */}
+      <div
+        className="hidden lg:block fixed inset-y-0 left-0 w-3 z-30 pointer-events-auto"
+        aria-hidden="true"
+        onMouseEnter={() => {
+          if (window.matchMedia('(pointer: fine)').matches) {
+            setSidebarOpen(true);
+          }
+        }}
+      />
+
+      {/* Semi-transparent dark backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 z-40 transition-opacity duration-[240ms]"
           onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar as Fixed Overlay (width 260px, 240ms ease transition, z-50) */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-[#0C1F17] text-emerald-50 flex flex-col transition-transform duration-200 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        ref={sidebarRef}
+        tabIndex={-1}
+        aria-label="Main Navigation"
+        onMouseLeave={() => {
+          if (window.matchMedia('(pointer: fine)').matches) {
+            setSidebarOpen(false);
+          }
+        }}
+        className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-[#0C1F17] text-emerald-50 flex flex-col shadow-2xl transition-transform duration-[240ms] ease-out outline-none ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="px-6 py-5 border-b border-emerald-900/60 flex items-center justify-between">
@@ -98,34 +202,36 @@ export const AppLayout: React.FC = () => {
             </div>
           </div>
           <button
-            className="lg:hidden text-emerald-300 hover:text-white"
+            className="text-emerald-300 hover:text-white p-1 rounded-lg"
             onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* One-Click Demo Button */}
-        <div className="px-4 pt-4 pb-2">
-          <button
-            onClick={handleOneClickDemo}
-            disabled={runningDemo}
-            className="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
-          >
-            <Play className="w-4 h-4 fill-current" />
-            {runningDemo ? 'Running E2E Pipeline...' : t(lang, 'run_demo')}
-          </button>
-        </div>
+        {/* One-Click Demo Button - Coordinator & Expert only */}
+        {user?.role !== 'farmer' && (
+          <div className="px-4 pt-4 pb-2">
+            <button
+              onClick={handleOneClickDemo}
+              disabled={runningDemo}
+              className="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              {runningDemo ? 'Running E2E Pipeline...' : t(lang, 'run_demo')}
+            </button>
+          </div>
+        )}
 
         {/* Nav links */}
         <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
+          {user?.role === 'farmer' && (
+            <>
+              {/* Grower (5 items): My Farm Advisory (/grower), Weather Breaks (/rain-gap), My Plots (/plots), Alerts (/notifications), Settings (/settings) */}
               <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
+                to="/grower"
+                end
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
@@ -136,17 +242,422 @@ export const AppLayout: React.FC = () => {
                 }
               >
                 <span className="flex items-center gap-3">
-                  <Icon className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>{item.label}</span>
+                  <LayoutDashboard className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_grower_advisory')}</span>
                 </span>
-                {item.badge ? (
-                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500 text-black font-bold">
-                    {item.badge}
-                  </span>
-                ) : null}
               </NavLink>
-            );
-          })}
+
+              <NavLink
+                to="/rain-gap"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <CloudRain className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_weather_breaks')}</span>
+                </span>
+              </NavLink>
+
+              <NavLink
+                to="/plots"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_my_plots')}</span>
+                </span>
+              </NavLink>
+
+              <NavLink
+                to="/notifications"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <Bell className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_alerts')}</span>
+                </span>
+                {unreadCount > 0 && (
+                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500 text-black font-bold">
+                    {unreadCount}
+                  </span>
+                )}
+              </NavLink>
+
+              <NavLink
+                to="/settings"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <SettingsIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_settings')}</span>
+                </span>
+              </NavLink>
+            </>
+          )}
+
+          {user?.role === 'coordinator' && (
+            <>
+              {/* Coordinator (7 top-level items):
+                  1. Command Center (/)
+                  2. Rain-Gap Twin (/rain-gap)
+                  3. Plots & Crews (group: /plots, /crews)
+                  4. Schedule (group: /planner, /gantt, /replanning)
+                  5. Policy Arena (/policy-arena)
+                  6. Intelligence Assistant (/assistant)
+                  7. Settings (/settings) */}
+              <NavLink
+                to="/"
+                end
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <LayoutDashboard className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_dashboard')}</span>
+                </span>
+              </NavLink>
+
+              <NavLink
+                to="/rain-gap"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <CloudRain className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_rain_gap')}</span>
+                </span>
+              </NavLink>
+
+              {/* Group: Plots & Crews */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setPlotsCrewsOpen(!plotsCrewsOpen)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold text-emerald-300/80 hover:text-white uppercase tracking-wider transition cursor-pointer"
+                >
+                  <span>{t(lang, 'nav_plots_crews_group')}</span>
+                  {plotsCrewsOpen ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
+                  )}
+                </button>
+                {plotsCrewsOpen && (
+                  <div className="space-y-0.5 pl-2 mt-0.5">
+                    <NavLink
+                      to="/plots"
+                      onClick={() => setSidebarOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition ${
+                          isActive
+                            ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                            : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                        }`
+                      }
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>{t(lang, 'nav_plots')}</span>
+                      </span>
+                    </NavLink>
+                    <NavLink
+                      to="/crews"
+                      onClick={() => setSidebarOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition ${
+                          isActive
+                            ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                            : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                        }`
+                      }
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <Users className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>{t(lang, 'nav_crews')}</span>
+                      </span>
+                    </NavLink>
+                  </div>
+                )}
+              </div>
+
+              {/* Group: Schedule */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setScheduleOpen(!scheduleOpen)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold text-emerald-300/80 hover:text-white uppercase tracking-wider transition cursor-pointer"
+                >
+                  <span>{t(lang, 'nav_schedule_group')}</span>
+                  {scheduleOpen ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
+                  )}
+                </button>
+                {scheduleOpen && (
+                  <div className="space-y-0.5 pl-2 mt-0.5">
+                    <NavLink
+                      to="/planner"
+                      onClick={() => setSidebarOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition ${
+                          isActive
+                            ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                            : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                        }`
+                      }
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <Cpu className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>{t(lang, 'nav_planner')}</span>
+                      </span>
+                    </NavLink>
+                    <NavLink
+                      to="/gantt"
+                      onClick={() => setSidebarOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition ${
+                          isActive
+                            ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                            : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                        }`
+                      }
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <CalendarClock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>{t(lang, 'nav_gantt')}</span>
+                      </span>
+                    </NavLink>
+                    <NavLink
+                      to="/replanning"
+                      onClick={() => setSidebarOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition ${
+                          isActive
+                            ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                            : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                        }`
+                      }
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <Compass className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>{t(lang, 'nav_replanning')}</span>
+                      </span>
+                    </NavLink>
+                  </div>
+                )}
+              </div>
+
+              <NavLink
+                to="/policy-arena"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <Scale className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_arena')}</span>
+                </span>
+              </NavLink>
+
+              <NavLink
+                to="/assistant"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <Bot className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_assistant')}</span>
+                </span>
+              </NavLink>
+
+              <NavLink
+                to="/settings"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <SettingsIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_settings')}</span>
+                </span>
+              </NavLink>
+            </>
+          )}
+
+          {user?.role === 'admin' && (
+            <>
+              {/* Expert / Admin (6 items):
+                  1. Data & Assumptions (/governance)
+                  2. Risk & Protection Twin (/risk-twin)
+                  3. Rain-Gap Twin (/rain-gap)
+                  4. Policy Arena (/policy-arena)
+                  5. Notifications & Audit (/notifications)
+                  6. Settings (/settings) */}
+              <NavLink
+                to="/governance"
+                end
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <Database className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_governance')}</span>
+                </span>
+              </NavLink>
+
+              <NavLink
+                to="/risk-twin"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <Activity className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_risk_twin')}</span>
+                </span>
+              </NavLink>
+
+              <NavLink
+                to="/rain-gap"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <CloudRain className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_rain_gap')}</span>
+                </span>
+              </NavLink>
+
+              <NavLink
+                to="/policy-arena"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <Scale className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_arena')}</span>
+                </span>
+              </NavLink>
+
+              <NavLink
+                to="/notifications"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <Bell className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_notifications')}</span>
+                </span>
+                {unreadCount > 0 && (
+                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500 text-black font-bold">
+                    {unreadCount}
+                  </span>
+                )}
+              </NavLink>
+
+              <NavLink
+                to="/settings"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700/40 text-white border border-emerald-500/30'
+                      : 'text-emerald-100/75 hover:bg-emerald-900/40 hover:text-white'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <SettingsIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t(lang, 'nav_settings')}</span>
+                </span>
+              </NavLink>
+            </>
+          )}
         </nav>
 
         {/* User Footer */}
@@ -160,6 +671,7 @@ export const AppLayout: React.FC = () => {
             </div>
             <button
               onClick={() => {
+                sessionStorage.removeItem('ms_session_splash_shown');
                 logout();
                 navigate('/login');
               }}
@@ -173,17 +685,22 @@ export const AppLayout: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-stone-200 px-4 lg:px-8 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <button
-              className="lg:hidden p-2 rounded-lg border border-stone-200 text-stone-700"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <div>
+      <div className="flex-1 flex flex-col min-w-0 w-full">
+        {/* Top Header (shown on sub-pages; on dashboard it is integrated into the role image band) */}
+        {!isDashboard && (
+          <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-stone-200 px-4 lg:px-8 py-3 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                className="p-2 rounded-lg border border-stone-200 text-stone-700 hover:bg-stone-100 transition cursor-pointer"
+                onClick={() => setSidebarOpen(true)}
+                aria-expanded={sidebarOpen}
+                aria-label="Open navigation"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <div className="font-bold tracking-tight text-stone-900 text-sm hidden sm:block">
+                MAHALISHIELD
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                   Thirthahalli Cluster · Shivamogga, KA
@@ -194,37 +711,78 @@ export const AppLayout: React.FC = () => {
                 </span>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2.5">
-            {/* Language Switcher (English / Kannada) */}
-            <button
-              onClick={() => setLang(lang === 'en' ? 'kn' : 'en')}
-              className="px-3 py-1.5 rounded-lg border border-stone-300 bg-stone-50 hover:bg-stone-100 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-            >
-              <Globe className="w-3.5 h-3.5 text-emerald-700" />
-              <span>{lang === 'en' ? 'ಕನ್ನಡ (KN)' : 'English (EN)'}</span>
-            </button>
+            <div className="flex items-center gap-2.5">
+              {/* Language Switcher (English / Kannada) */}
+              <button
+                onClick={() => setLang(lang === 'en' ? 'kn' : 'en')}
+                className="px-3 py-1.5 rounded-lg border border-stone-300 bg-stone-50 hover:bg-stone-100 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Globe className="w-3.5 h-3.5 text-emerald-700" />
+                <span>{lang === 'en' ? 'ಕನ್ನಡ (KN)' : 'English (EN)'}</span>
+              </button>
 
-            <NavLink
-              to="/notifications"
-              className="relative p-2 rounded-lg border border-stone-200 hover:bg-stone-100 text-stone-700"
-            >
-              <Bell className="w-4 h-4" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </NavLink>
-          </div>
-        </header>
+              <NavLink
+                to="/notifications"
+                className="relative p-2 rounded-lg border border-stone-200 hover:bg-stone-100 text-stone-700"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </NavLink>
+            </div>
+          </header>
+        )}
 
         {/* Page Container */}
-        <main className="flex-1 p-4 lg:p-8 max-w-[1600px] w-full mx-auto">
-          <Outlet />
+        <main className={`flex-1 w-full min-w-0 ${!isDashboard ? 'p-4 lg:p-8 max-w-[1600px] mx-auto' : ''}`}>
+          <Suspense fallback={<GenericPageSkeleton />}>
+            <Outlet context={{ openSidebar: () => setSidebarOpen(true), sidebarOpen }} />
+          </Suspense>
         </main>
       </div>
+
+      {/* Post-Login Full-Screen Splash (once per session) */}
+      {splashState !== 'hidden' && (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Application loading"
+          className={`fixed inset-0 z-[100] flex flex-col items-center justify-center p-6 transition-opacity duration-300 ${
+            splashState === 'fading' ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          }`}
+          style={{
+            backgroundColor: '#04100a',
+            backgroundImage: bgImageFailed
+              ? 'linear-gradient(180deg, #04100a 0%, #0c1f17 100%)'
+              : `linear-gradient(180deg, rgba(4,16,10,0.85), rgba(4,16,10,0.85)), url('${splashImg}')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          <img
+            src={splashImg}
+            alt=""
+            aria-hidden="true"
+            className="hidden"
+            onError={() => setBgImageFailed(true)}
+          />
+          <div className="flex flex-col items-center text-center space-y-4 max-w-md">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
+              <ShieldCheck className="w-8 h-8 text-emerald-400" />
+            </div>
+            <div className="font-extrabold tracking-tight text-2xl text-white">
+              MAHALISHIELD
+            </div>
+            <p className="text-sm font-medium text-emerald-100/90 tracking-wide">
+              {splashText}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Toast Stack */}
       <div className="fixed bottom-5 right-5 z-50 space-y-2 max-w-md w-full pointer-events-none px-4">

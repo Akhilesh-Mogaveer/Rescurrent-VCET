@@ -12,6 +12,16 @@ import {
 import { AlertCircle, Play, Scale } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
+import {
+  ActionStatusLine,
+  InlineError,
+  SkeletonBlock,
+  SkeletonCard,
+  SkeletonChart,
+  SkeletonTable,
+  useDelayedLoading,
+  useLoadTimeout,
+} from '../components/Skeleton';
 
 export const PolicyArenaPage: React.FC = () => {
   const { pushToast } = useApp();
@@ -20,12 +30,21 @@ export const PolicyArenaPage: React.FC = () => {
   const [arenaData, setArenaData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [running, setRunning] = useState<boolean>(false);
+  const [arenaDone, setArenaDone] = useState<boolean>(false);
+  const [arenaError, setArenaError] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState<boolean>(false);
+
+  const showSkeleton = useDelayedLoading(loading);
+  useLoadTimeout(loading, () => setTimedOut(true), 20000);
 
   const runComparison = async (
     sens: 'low' | 'base' | 'high' = sensitivity,
     mode: 'in_sample' | 'holdout' = evalMode,
   ) => {
     setRunning(true);
+    setArenaDone(false);
+    setArenaError(null);
+    setTimedOut(false);
     try {
       const res = await apiRequest('/policies/compare', {
         method: 'POST',
@@ -37,12 +56,15 @@ export const PolicyArenaPage: React.FC = () => {
         }),
       });
       setArenaData(res);
+      setArenaDone(true);
+      setTimeout(() => setArenaDone(false), 2500);
       pushToast(
         'Policy Arena Evaluated',
         `Compared Calendar, Reactive, and MahaliShield Optimized policies in ${res.duration_ms} ms`,
         'success',
       );
     } catch (err: any) {
+      setArenaError(err.message || 'Comparison failed');
       pushToast('Policy Comparison Error', err.message, 'error');
     } finally {
       setRunning(false);
@@ -54,12 +76,43 @@ export const PolicyArenaPage: React.FC = () => {
     runComparison();
   }, []);
 
-  if (loading && !arenaData) {
-    return (
-      <div className="p-12 text-center text-xs text-stone-500">
-        Running Policy Arena (Calendar vs Reactive vs MahaliShield CP-SAT)...
-      </div>
-    );
+  if (!arenaData) {
+    if (timedOut || (!loading && !arenaData)) {
+      return (
+        <div className="p-6">
+          <InlineError
+            target="Policy Arena evaluation"
+            message={timedOut ? 'Request timed out after 20s. Could not load policy evaluation.' : undefined}
+            onRetry={() => runComparison()}
+          />
+        </div>
+      );
+    }
+
+    if (loading || showSkeleton) {
+      return (
+        <div aria-busy="true" className="space-y-6">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-3">
+            <SkeletonBlock height={20} width={220} radius={999} />
+            <SkeletonBlock height={28} width="50%" />
+            <SkeletonBlock height={14} width="70%" />
+          </div>
+          {/* Three Summary Cards Skeleton */}
+          <div className="grid md:grid-cols-3 gap-6">
+            <SkeletonCard height={200} />
+            <SkeletonCard height={200} />
+            <SkeletonCard height={200} />
+          </div>
+          {/* Two Charts Skeleton */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            <SkeletonChart height={300} />
+            <SkeletonChart height={300} />
+          </div>
+          {/* Matrix Table Skeleton */}
+          <SkeletonTable rows={6} cols={4} />
+        </div>
+      );
+    }
   }
 
   const policies = arenaData?.policies || {};
@@ -123,8 +176,8 @@ export const PolicyArenaPage: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300">
-                SIMULATED RESULT — IDENTICAL INITIAL CONDITIONS & CONSTRAINTS
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-300">
+                IDENTICAL INITIAL CONDITIONS & CONSTRAINTS
               </span>
               <span className="text-xs font-mono text-stone-600">
                 Twin: {arenaData?.parameter_version} ({arenaData?.sensitivity})
@@ -176,6 +229,14 @@ export const PolicyArenaPage: React.FC = () => {
               <Play className="w-3.5 h-3.5 fill-current" />
               {running ? 'Evaluating...' : 'Re-Run Arena'}
             </button>
+            <ActionStatusLine
+              isRunning={running}
+              actionName="Comparing policies"
+              timeLimit={6}
+              isDone={arenaDone}
+              error={arenaError}
+              onRetry={() => runComparison(sensitivity, evalMode)}
+            />
           </div>
         </div>
 

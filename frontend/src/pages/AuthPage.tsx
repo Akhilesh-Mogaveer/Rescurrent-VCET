@@ -1,17 +1,88 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CloudRain, KeyRound, Lock, Mail, ShieldCheck, UserCheck, Users } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { KeyRound, Lock, Mail, ShieldCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import type { User } from '../types';
 
+interface RoleCardConfig {
+  id: string;
+  num: string;
+  title: string;
+  roleKey: 'coordinator' | 'farmer' | 'admin';
+  desc: string;
+  summary: string;
+  accent: string;
+  image: string;
+  fallbackImage: string;
+  defaultEmail: string;
+  defaultPassword: string;
+}
+
+const ROLES: RoleCardConfig[] = [
+  {
+    id: 'coordinator',
+    num: '01',
+    title: 'Cooperative Coordinator',
+    roleKey: 'coordinator',
+    desc: 'Plan crews, sprayers, and schedules.',
+    summary: 'Command center, optimizer, replanning',
+    accent: '#10b981',
+    image: '/roles/coordinator.webp',
+    fallbackImage: '/page_img/coordinator.png',
+    defaultEmail: 'coordinator@mahalishield.org',
+    defaultPassword: 'Mahali@2026',
+  },
+  {
+    id: 'grower',
+    num: '02',
+    title: 'Arecanut Grower',
+    roleKey: 'farmer',
+    desc: 'Plot advice in Kannada and English.',
+    summary: 'Plot advisory, offline plan',
+    accent: '#f59e0b',
+    image: '/roles/grower.webp',
+    fallbackImage: '/page_img/farmer.png',
+    defaultEmail: 'farmer@mahalishield.org',
+    defaultPassword: 'Mahali@2026',
+  },
+  {
+    id: 'expert',
+    num: '03',
+    title: 'Agricultural Expert',
+    roleKey: 'admin',
+    desc: 'Model governance, provenance, and audit.',
+    summary: 'Governance, provenance, audit',
+    accent: '#3b82f6',
+    image: '/roles/expert.webp',
+    fallbackImage: '/page_img/admin.png',
+    defaultEmail: 'expert@mahalishield.org',
+    defaultPassword: 'Mahali@2026',
+  },
+];
+
 export const AuthPage: React.FC = () => {
   const { login, pushToast } = useApp();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const showTabs = searchParams.get('tabs') === 'true';
 
+  // 3D Flip Card state
+  const [flippedCard, setFlippedCard] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<{
+    [key: string]: { email: string; pass: string };
+  }>({
+    coordinator: { email: 'coordinator@mahalishield.org', pass: 'Mahali@2026' },
+    grower: { email: 'farmer@mahalishield.org', pass: 'Mahali@2026' },
+    expert: { email: 'expert@mahalishield.org', pass: 'Mahali@2026' },
+  });
+  const [cardImgErrors, setCardImgErrors] = useState<{ [key: string]: boolean }>({});
+  const [cardImgFailed, setCardImgFailed] = useState<{ [key: string]: boolean }>({});
+
+  // Legacy tabbed auth state (for Register & Reset Password flows)
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
-  const [email, setEmail] = useState('coordinator@mahalishield.org');
-  const [password, setPassword] = useState('Mahali@2026');
+  const [legacyEmail, setLegacyEmail] = useState('coordinator@mahalishield.org');
+  const [legacyPassword, setLegacyPassword] = useState('Mahali@2026');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'farmer' | 'coordinator' | 'admin'>('farmer');
   const [language, setLanguage] = useState<'en' | 'kn'>('en');
@@ -21,18 +92,52 @@ export const AuthPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleQuickDemoLogin = async (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('Mahali@2026');
+  // Sync role query param to legacy state if provided
+  useEffect(() => {
+    const roleParam = searchParams.get('role');
+    if (roleParam === 'coordinator' || roleParam === 'farmer' || roleParam === 'admin') {
+      setRole(roleParam);
+      if (roleParam === 'coordinator') setLegacyEmail('coordinator@mahalishield.org');
+      else if (roleParam === 'farmer') setLegacyEmail('farmer@mahalishield.org');
+      else if (roleParam === 'admin') setLegacyEmail('expert@mahalishield.org');
+    }
+  }, [searchParams]);
+
+  // Flip back on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFlippedCard(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Auto-focus email field on card flip completion
+  useEffect(() => {
+    if (flippedCard) {
+      const timer = setTimeout(() => {
+        const input = document.getElementById(`email-input-${flippedCard}`);
+        input?.focus();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [flippedCard]);
+
+  // Handle Sign In from Back Face of Role Card
+  const handleCardLogin = async (e: React.FormEvent, card: RoleCardConfig) => {
+    e.preventDefault();
     setError(null);
     setLoading(true);
+    const cred = credentials[card.id] || { email: card.defaultEmail, pass: card.defaultPassword };
     try {
       const res = await apiRequest<{ access_token: string; user: User }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email: demoEmail, password: 'Mahali@2026' }),
+        body: JSON.stringify({ email: cred.email, password: cred.pass }),
       });
       login(res.access_token, res.user);
-      pushToast('Signed In', `Welcome back, ${res.user.full_name}`, 'success');
+      pushToast('Signed In', `Welcome, ${res.user.full_name}`, 'success');
       navigate('/');
     } catch (err: any) {
       setError(err.message || 'Login failed');
@@ -41,7 +146,8 @@ export const AuthPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Handle Legacy Tabs Submit
+  const handleLegacySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -49,7 +155,7 @@ export const AuthPage: React.FC = () => {
       if (mode === 'login') {
         const res = await apiRequest<{ access_token: string; user: User }>('/auth/login', {
           method: 'POST',
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email: legacyEmail, password: legacyPassword }),
         });
         login(res.access_token, res.user);
         pushToast('Signed In', `Welcome, ${res.user.full_name}`, 'success');
@@ -58,9 +164,9 @@ export const AuthPage: React.FC = () => {
         const res = await apiRequest<{ access_token: string; user: User }>('/auth/register', {
           method: 'POST',
           body: JSON.stringify({
-            email,
+            email: legacyEmail,
             full_name: fullName,
-            password,
+            password: legacyPassword,
             role,
             language,
           }),
@@ -74,7 +180,7 @@ export const AuthPage: React.FC = () => {
             '/auth/forgot-password',
             {
               method: 'POST',
-              body: JSON.stringify({ email }),
+              body: JSON.stringify({ email: legacyEmail }),
             },
           );
           if (res.demo_reset_token) {
@@ -88,7 +194,7 @@ export const AuthPage: React.FC = () => {
           await apiRequest('/auth/reset-password', {
             method: 'POST',
             body: JSON.stringify({
-              email,
+              email: legacyEmail,
               reset_token: resetToken,
               new_password: newPassword,
             }),
@@ -105,106 +211,23 @@ export const AuthPage: React.FC = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen grid lg:grid-cols-12 bg-[#0C1F17] text-white">
-      {/* Left Brand Intelligence Column */}
-      <div className="lg:col-span-7 p-8 lg:p-16 flex flex-col justify-between bg-gradient-to-br from-[#0C1F17] via-[#112A20] to-[#0A1913] border-b lg:border-b-0 lg:border-r border-emerald-900/60">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6 text-emerald-400" />
-            </div>
-            <div>
-              <span className="font-bold tracking-tight text-xl text-white">MAHALISHIELD</span>
-              <span className="ml-2 text-xs px-2.5 py-0.5 rounded-full bg-emerald-900/80 text-emerald-300 border border-emerald-700">
-                CP-SAT + Ensemble Twin v1.0
-              </span>
-            </div>
-          </div>
+  // If "Register or reset password" was clicked, show tabbed auth interface
+  if (showTabs) {
+    return (
+      <div className="auth-page-bg flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="auth-rain-overlay" />
+        <div className="relative z-10 max-w-md w-full bg-white rounded-2xl border border-stone-200/90 shadow-xl p-6 sm:p-8 text-[#17211C]">
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setSearchParams({});
+            }}
+            className="mb-4 text-xs font-semibold text-emerald-800 hover:text-emerald-950 flex items-center gap-1.5 cursor-pointer transition"
+          >
+            ← Back to role selection
+          </button>
 
-          <h1 className="mt-10 text-3xl lg:text-5xl font-bold tracking-tight leading-tight text-white">
-            Win the gaps between the rains.
-          </h1>
-          <p className="mt-4 text-base lg:text-lg text-emerald-100/80 max-w-2xl leading-relaxed">
-            Uncertainty-aware farm protection planning for arecanut growers and cooperative
-            coordinators during monsoon breaks. Transforms ensemble rainfall scenarios, wetness &
-            protection decay dynamics, crew shifts, and sprayer capacity into validated,
-            explainable schedules.
-          </p>
-
-          <div className="mt-8 grid sm:grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-800/60">
-              <CloudRain className="w-5 h-5 text-emerald-400 mb-2" />
-              <div className="text-sm font-semibold">Rain-Gap Ensemble Twin</div>
-              <p className="text-xs text-emerald-200/75 mt-1">
-                30-member rainfall fan charts, dry-window probabilities, and rain-return risk.
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-800/60">
-              <Users className="w-5 h-5 text-emerald-400 mb-2" />
-              <div className="text-sm font-semibold">OR-Tools CP-SAT Scheduler</div>
-              <p className="text-xs text-emerald-200/75 mt-1">
-                Hard crew exclusivity, inter-plot travel buffers, equipment capacity, and precedence.
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-800/60">
-              <UserCheck className="w-5 h-5 text-emerald-400 mb-2" />
-              <div className="text-sm font-semibold">Scientific Governance</div>
-              <p className="text-xs text-emerald-200/75 mt-1">
-                Transparent conceptual exposure indices — never unvalidated disease probabilities.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* One-Click Demo Role Access */}
-        <div className="mt-10 pt-6 border-t border-emerald-900/80">
-          <div className="text-xs font-semibold uppercase tracking-wider text-emerald-300 mb-3">
-            Instant Demo Role Sign-In (Password: Mahali@2026)
-          </div>
-          <div className="grid sm:grid-cols-3 gap-3">
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('coordinator@mahalishield.org')}
-              className="p-3 rounded-xl bg-emerald-800/40 hover:bg-emerald-700/50 border border-emerald-600/50 text-left transition cursor-pointer"
-            >
-              <div className="text-xs font-bold text-white">Cooperative Coordinator</div>
-              <div className="text-[11px] text-emerald-300 truncate">
-                coordinator@mahalishield.org
-              </div>
-              <div className="text-[10px] text-emerald-200/70 mt-1">
-                Full Command Center, Optimizer, Replanning
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('farmer@mahalishield.org')}
-              className="p-3 rounded-xl bg-emerald-900/40 hover:bg-emerald-800/50 border border-emerald-700/50 text-left transition cursor-pointer"
-            >
-              <div className="text-xs font-bold text-white">Arecanut Grower (Farmer)</div>
-              <div className="text-[11px] text-emerald-300 truncate">farmer@mahalishield.org</div>
-              <div className="text-[10px] text-emerald-200/70 mt-1">
-                Plot Advisory, Kannada/English, Offline Plan
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('expert@mahalishield.org')}
-              className="p-3 rounded-xl bg-emerald-900/40 hover:bg-emerald-800/50 border border-emerald-700/50 text-left transition cursor-pointer"
-            >
-              <div className="text-xs font-bold text-white">Agricultural Expert / Admin</div>
-              <div className="text-[11px] text-emerald-300 truncate">expert@mahalishield.org</div>
-              <div className="text-[10px] text-emerald-200/70 mt-1">
-                Model Governance, Provenance & Audit
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Form Column */}
-      <div className="lg:col-span-5 bg-[#F6F5F0] text-[#17211C] p-8 lg:p-14 flex flex-col justify-center">
-        <div className="max-w-md w-full mx-auto bg-white rounded-2xl border border-stone-200/90 shadow-sm p-8">
           <div className="flex gap-2 mb-6 bg-stone-100 p-1 rounded-xl">
             <button
               type="button"
@@ -225,9 +248,7 @@ export const AuthPage: React.FC = () => {
                 setError(null);
               }}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                mode === 'register'
-                  ? 'bg-[#0C1F17] text-white'
-                  : 'text-stone-600 hover:text-stone-900'
+                mode === 'register' ? 'bg-[#0C1F17] text-white' : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               Register
@@ -239,9 +260,7 @@ export const AuthPage: React.FC = () => {
                 setError(null);
               }}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                mode === 'forgot'
-                  ? 'bg-[#0C1F17] text-white'
-                  : 'text-stone-600 hover:text-stone-900'
+                mode === 'forgot' ? 'bg-[#0C1F17] text-white' : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               Reset Password
@@ -254,7 +273,7 @@ export const AuthPage: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleLegacySubmit} className="space-y-4">
             {mode === 'register' && (
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1">Full Name</label>
@@ -270,16 +289,14 @@ export const AuthPage: React.FC = () => {
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Email Address
-              </label>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">Email Address</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-stone-400 absolute left-3.5 top-3" />
                 <input
                   type="email"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={legacyEmail}
+                  onChange={(e) => setLegacyEmail(e.target.value)}
                   className="w-full pl-10 pr-3.5 py-2.5 rounded-lg border border-stone-300 text-sm focus:outline-none focus:border-emerald-700"
                 />
               </div>
@@ -293,8 +310,8 @@ export const AuthPage: React.FC = () => {
                   <input
                     type="password"
                     required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={legacyPassword}
+                    onChange={(e) => setLegacyPassword(e.target.value)}
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-lg border border-stone-300 text-sm focus:outline-none focus:border-emerald-700"
                   />
                 </div>
@@ -316,9 +333,7 @@ export const AuthPage: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    Interface Language
-                  </label>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Language</label>
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value as any)}
@@ -337,9 +352,7 @@ export const AuthPage: React.FC = () => {
                   Demo Reset Code: <strong className="font-mono">{generatedToken}</strong>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    Reset Token
-                  </label>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Reset Token</label>
                   <div className="relative">
                     <KeyRound className="w-4 h-4 text-stone-400 absolute left-3.5 top-3" />
                     <input
@@ -352,9 +365,7 @@ export const AuthPage: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    New Password
-                  </label>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">New Password</label>
                   <input
                     type="password"
                     required
@@ -384,6 +395,257 @@ export const AuthPage: React.FC = () => {
             </button>
           </form>
         </div>
+      </div>
+    );
+  }
+
+  // Primary 3D Flip Role Selection View
+  return (
+    <div className="auth-page-bg">
+      {/* Optional ambient rain overlay */}
+      <div className="auth-rain-overlay" />
+
+      {/* Main Single Column Container (centered, max-width 1100px, vertical padding 48px) */}
+      <div className="relative z-10 max-w-[1100px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col justify-between min-h-screen">
+        {/* Top Header Row */}
+        <div>
+          <div className="auth-entrance-1 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
+              <ShieldCheck className="w-6 h-6 text-emerald-400" />
+            </div>
+            <div className="font-bold tracking-tight text-xl text-white leading-none">
+              MAHALISHIELD
+            </div>
+          </div>
+
+          {/* Headline & Subline */}
+          <div className="mt-8 mb-6">
+            <h1 className="auth-entrance-2 text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
+              Win the gaps between the rains.
+            </h1>
+            <p className="auth-entrance-3 mt-2 text-sm sm:text-base text-white/70 max-w-2xl line-clamp-1">
+              Rain-aware spray scheduling for arecanut growers and cooperatives.
+            </p>
+          </div>
+
+          {/* Small label above cards */}
+          <div className="auth-entrance-4 text-xs uppercase tracking-wider text-emerald-300/90 font-mono font-semibold mb-3">
+            Choose your role
+          </div>
+
+          {/* Role Cards (CSS Grid, 3 columns, 24px gap, 420px tall) */}
+          <div className="auth-cards-grid">
+            {ROLES.map((card) => {
+              const isFlipped = flippedCard === card.id;
+              const cardCred = credentials[card.id] || {
+                email: card.defaultEmail,
+                pass: card.defaultPassword,
+              };
+
+              return (
+                <div key={card.id} className="auth-card-wrapper">
+                  <div className={`auth-card-inner ${isFlipped ? 'is-flipped' : ''}`}>
+                    {/* FRONT FACE */}
+                    <div
+                      className="auth-card-face auth-card-front"
+                      style={{
+                        border: `1px solid ${card.accent}59`, // 35% opacity
+                      }}
+                      tabIndex={isFlipped ? -1 : 0}
+                      role="button"
+                      aria-label={`Explore ${card.title}`}
+                      aria-hidden={isFlipped}
+                      inert={isFlipped ? true : undefined}
+                      onClick={() => {
+                        setError(null);
+                        setFlippedCard(card.id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setError(null);
+                          setFlippedCard(card.id);
+                        }
+                      }}
+                    >
+                      {/* Top content area */}
+                      <div className="p-5 pb-2">
+                        <div className="font-mono text-xs font-bold" style={{ color: card.accent }}>
+                          {card.num}
+                        </div>
+                        <h2 className="text-xl font-semibold text-white mt-1 leading-snug">
+                          {card.title}
+                        </h2>
+                        <p className="auth-card-desc">
+                          {card.desc}
+                        </p>
+                        <div
+                          className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold cursor-pointer"
+                          style={{
+                            border: `1px solid ${card.accent}`,
+                            color: card.accent,
+                          }}
+                        >
+                          Explore <span className="auth-explore-arrow">→</span>
+                        </div>
+                      </div>
+
+                      {/* Bottom ~60%: Role image with gradient fade & watermark crop */}
+                      <div
+                        className="auth-card-img-container"
+                        style={{
+                          background: cardImgFailed[card.id]
+                            ? `linear-gradient(180deg, rgba(8,20,14,0.72) 0%, ${card.accent}30 100%)`
+                            : undefined,
+                        }}
+                      >
+                        <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-b from-[rgba(8,20,14,0.95)] via-[rgba(8,20,14,0.3)] to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 h-8 z-10 pointer-events-none bg-gradient-to-t from-[rgba(8,20,14,0.98)] to-transparent" />
+                        {!cardImgFailed[card.id] && (
+                          <img
+                            src={cardImgErrors[card.id] ? card.fallbackImage : card.image}
+                            alt=""
+                            aria-hidden="true"
+                            className="auth-card-img"
+                            onError={() => {
+                              if (!cardImgErrors[card.id]) {
+                                setCardImgErrors((prev) => ({ ...prev, [card.id]: true }));
+                              } else {
+                                setCardImgFailed((prev) => ({ ...prev, [card.id]: true }));
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* BACK FACE */}
+                    <div
+                      className="auth-card-face auth-card-back"
+                      style={{
+                        border: `1px solid ${card.accent}59`,
+                      }}
+                      aria-hidden={!isFlipped}
+                      inert={!isFlipped ? true : undefined}
+                    >
+                      {/* Top header & Back link */}
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-lg font-semibold text-white leading-tight">
+                            {card.title}
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFlippedCard(null);
+                            }}
+                            className="text-xs text-stone-400 hover:text-white flex items-center gap-1 cursor-pointer transition"
+                            aria-label="Back to card front"
+                          >
+                            ← Back
+                          </button>
+                        </div>
+                        <p className="text-xs text-stone-300 mt-1 line-clamp-1">
+                          {card.summary}
+                        </p>
+                      </div>
+
+                      {/* Inline error if any */}
+                      {isFlipped && error && (
+                        <div className="my-2 p-2.5 rounded-lg bg-red-950/80 border border-red-700/80 text-red-200 text-xs font-medium">
+                          {error}
+                        </div>
+                      )}
+
+                      {/* Sign in form */}
+                      <form
+                        onSubmit={(e) => handleCardLogin(e, card)}
+                        className="space-y-3.5 my-auto"
+                      >
+                        <div className="auth-back-stagger-1">
+                          <label className="block text-xs font-semibold text-stone-300 mb-1">
+                            Email Address
+                          </label>
+                          <div className="relative">
+                            <Mail className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+                            <input
+                              id={`email-input-${card.id}`}
+                              type="email"
+                              required
+                              value={cardCred.email}
+                              onChange={(e) =>
+                                setCredentials((prev) => ({
+                                  ...prev,
+                                  [card.id]: { ...cardCred, email: e.target.value },
+                                }))
+                              }
+                              className="w-full pl-9 pr-3 py-2 rounded-lg bg-black/40 border border-white/20 text-white text-xs placeholder-stone-500 focus:outline-none focus:border-white/50"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="auth-back-stagger-2">
+                          <label className="block text-xs font-semibold text-stone-300 mb-1">
+                            Password
+                          </label>
+                          <div className="relative">
+                            <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+                            <input
+                              type="password"
+                              required
+                              value={cardCred.pass}
+                              onChange={(e) =>
+                                setCredentials((prev) => ({
+                                  ...prev,
+                                  [card.id]: { ...cardCred, pass: e.target.value },
+                                }))
+                              }
+                              className="w-full pl-9 pr-3 py-2 rounded-lg bg-black/40 border border-white/20 text-white text-xs placeholder-stone-500 focus:outline-none focus:border-white/50"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="auth-back-stagger-3 pt-1">
+                          <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-2.5 rounded-xl font-bold text-xs shadow-sm transition cursor-pointer disabled:opacity-50"
+                            style={{
+                              backgroundColor: card.accent,
+                              color: '#0C1F17',
+                            }}
+                          >
+                            {loading ? 'Signing In...' : 'Sign in'}
+                          </button>
+                        </div>
+                      </form>
+
+                      {/* Footer link to legacy tabs */}
+                      <div className="auth-back-stagger-4 text-center pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setError(null);
+                            setSearchParams({ tabs: 'true', role: card.roleKey });
+                          }}
+                          className="text-xs text-stone-400 hover:text-white underline cursor-pointer transition"
+                        >
+                          Register or reset password
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer line */}
+        {/* <footer className="mt-8 text-center text-xs text-stone-400">
+          Synthetic demo data · Simulated exposure, not disease probability
+        </footer> */}
       </div>
     </div>
   );

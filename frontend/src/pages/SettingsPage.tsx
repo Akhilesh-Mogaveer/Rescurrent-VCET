@@ -2,6 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Globe, Save, Shield, Sliders, User as UserIcon } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
+import {
+  InlineError,
+  SkeletonBlock,
+  useDelayedLoading,
+  useLoadTimeout,
+} from '../components/Skeleton';
 
 export const SettingsPage: React.FC = () => {
   const { user, lang, setLang, refreshUser, pushToast } = useApp();
@@ -15,14 +21,33 @@ export const SettingsPage: React.FC = () => {
     user?.preferences?.notifications_enabled !== false,
   );
   const [usersList, setUsersList] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState<boolean>(false);
+  const [usersTimedOut, setUsersTimedOut] = useState<boolean>(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const showUsersSkeleton = useDelayedLoading(loadingUsers);
+  useLoadTimeout(loadingUsers, () => setUsersTimedOut(true), 20000);
+
+  const loadUsersList = () => {
+    if (user?.role !== 'admin') return;
+    setLoadingUsers(true);
+    setUsersError(null);
+    setUsersTimedOut(false);
+    apiRequest<any[]>('/users')
+      .then((data) => {
+        setUsersList(data);
+      })
+      .catch((err) => {
+        setUsersError(err.message || 'Failed to load users');
+      })
+      .finally(() => {
+        setLoadingUsers(false);
+      });
+  };
+
   useEffect(() => {
-    if (user?.role === 'admin') {
-      apiRequest<any[]>('/users')
-        .then(setUsersList)
-        .catch(() => {});
-    }
+    loadUsersList();
   }, [user?.role]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -190,32 +215,45 @@ export const SettingsPage: React.FC = () => {
             </p>
           </div>
 
-          {user?.role === 'admin' && usersList.length > 0 && (
+          {user?.role === 'admin' && (
             <div className="pt-3 border-t border-stone-200 space-y-2">
               <h3 className="font-bold text-[#17211C] flex items-center gap-1.5">
                 <Sliders className="w-3.5 h-3.5 text-emerald-700" />
                 Administrator User Role Control
               </h3>
-              {usersList.map((u) => (
-                <div
-                  key={u.id}
-                  className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-bold">{u.full_name}</div>
-                    <div className="text-[11px] text-stone-500">{u.email}</div>
-                  </div>
-                  <select
-                    value={u.role}
-                    onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                    className="px-2 py-1 rounded border border-stone-300 bg-white font-semibold"
-                  >
-                    <option value="farmer">farmer</option>
-                    <option value="coordinator">coordinator</option>
-                    <option value="admin">admin</option>
-                  </select>
+              {usersTimedOut || usersError ? (
+                <InlineError
+                  target="user accounts list"
+                  message={usersTimedOut ? 'Request timed out after 20s. Could not load users.' : undefined}
+                  onRetry={loadUsersList}
+                />
+              ) : loadingUsers || showUsersSkeleton ? (
+                <div aria-busy="true" className="space-y-2">
+                  <SkeletonBlock height={40} />
+                  <SkeletonBlock height={40} />
                 </div>
-              ))}
+              ) : (
+                usersList.map((u) => (
+                  <div
+                    key={u.id}
+                    className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="font-bold">{u.full_name}</div>
+                      <div className="text-[11px] text-stone-500">{u.email}</div>
+                    </div>
+                    <select
+                      value={u.role}
+                      onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                      className="px-2 py-1 rounded border border-stone-300 bg-white font-semibold"
+                    >
+                      <option value="farmer">farmer</option>
+                      <option value="coordinator">coordinator</option>
+                      <option value="admin">admin</option>
+                    </select>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>

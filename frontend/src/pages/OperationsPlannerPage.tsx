@@ -12,6 +12,15 @@ import {
 import { useApp } from '../context/AppContext';
 import { apiRequest, cacheApprovedPlan } from '../services/api';
 import type { PlanItem } from '../types';
+import {
+  ActionStatusLine,
+  EmptyState,
+  InlineError,
+  SkeletonCard,
+  SkeletonTable,
+  useDelayedLoading,
+  useLoadTimeout,
+} from '../components/Skeleton';
 
 export const OperationsPlannerPage: React.FC = () => {
   const { pushToast, refreshNotifications } = useApp();
@@ -22,8 +31,17 @@ export const OperationsPlannerPage: React.FC = () => {
   const [timeLimit, setTimeLimit] = useState<number>(8.0);
   const [planName, setPlanName] = useState<string>('');
   const [solving, setSolving] = useState<boolean>(false);
+  const [optDone, setOptDone] = useState<boolean>(false);
+  const [optError, setOptError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [timedOut, setTimedOut] = useState<boolean>(false);
+
+  const showSkeleton = useDelayedLoading(loading);
+  useLoadTimeout(loading, () => setTimedOut(true), 20000);
 
   const loadPlans = async (selectId?: number) => {
+    setLoading(true);
+    setTimedOut(false);
     try {
       const list = await apiRequest<PlanItem[]>('/plans');
       setPlans(list);
@@ -34,6 +52,8 @@ export const OperationsPlannerPage: React.FC = () => {
       }
     } catch (err: any) {
       pushToast('Load Plans Error', err.message, 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -43,6 +63,8 @@ export const OperationsPlannerPage: React.FC = () => {
 
   const handleOptimize = async () => {
     setSolving(true);
+    setOptDone(false);
+    setOptError(null);
     try {
       const created = await apiRequest<PlanItem>('/plans/optimize', {
         method: 'POST',
@@ -57,12 +79,15 @@ export const OperationsPlannerPage: React.FC = () => {
       setSelectedPlan(created);
       await loadPlans(created.id);
       await refreshNotifications();
+      setOptDone(true);
+      setTimeout(() => setOptDone(false), 2500);
       pushToast(
         'CP-SAT Optimization Complete',
         `Plan #${created.id} solved (${created.solver.status}) in ${created.solver.solve_time_s}s · Objective ${created.solver.objective}`,
         'success',
       );
     } catch (err: any) {
+      setOptError(err.message || 'Optimizer failed');
       pushToast('Optimizer Error', err.message, 'error');
     } finally {
       setSolving(false);
@@ -156,7 +181,7 @@ export const OperationsPlannerPage: React.FC = () => {
               className="w-full mt-2 accent-emerald-700"
             />
           </div>
-          <div className="flex items-end">
+          <div className="flex flex-col justify-end gap-1.5">
             <button
               onClick={handleOptimize}
               disabled={solving}
@@ -165,9 +190,42 @@ export const OperationsPlannerPage: React.FC = () => {
               <Play className="w-4 h-4 fill-current" />
               {solving ? 'Solving CP-SAT...' : 'Solve & Validate Plan'}
             </button>
+            <ActionStatusLine
+              isRunning={solving}
+              actionName="Optimizing"
+              timeLimit={timeLimit}
+              isDone={optDone}
+              error={optError}
+              onRetry={handleOptimize}
+              className="mt-1"
+            />
           </div>
         </div>
       </div>
+
+      {!selectedPlan && (
+        timedOut ? (
+          <InlineError
+            target="operations plans"
+            message="Request timed out after 20s. Could not load optimizer plans."
+            onRetry={() => loadPlans()}
+          />
+        ) : loading || showSkeleton ? (
+          <div aria-busy="true" className="space-y-6">
+            <div className="grid lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-6"><SkeletonCard height={240} /></div>
+              <div className="lg:col-span-6"><SkeletonCard height={240} /></div>
+            </div>
+            <SkeletonTable rows={5} cols={6} />
+          </div>
+        ) : (
+          <EmptyState
+            message="No operations scheduled yet."
+            actionLabel="Run CP-SAT Optimizer"
+            onAction={handleOptimize}
+          />
+        )
+      )}
 
       {selectedPlan && (
         <>
@@ -195,7 +253,7 @@ export const OperationsPlannerPage: React.FC = () => {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-800">
                   <div className="text-emerald-300/80 text-[10px] uppercase">Solver Status</div>
                   <div className="text-sm font-bold font-mono mt-1">
@@ -210,20 +268,27 @@ export const OperationsPlannerPage: React.FC = () => {
                       '-'}
                   </div>
                 </div>
-                <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-800">
-                  <div className="text-emerald-300/80 text-[10px] uppercase">Solve Wall Time</div>
-                  <div className="text-sm font-bold font-mono mt-1">
-                    {selectedPlan.solver?.solve_time_s ?? 0.01}s
-                  </div>
-                </div>
-                <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-800">
-                  <div className="text-emerald-300/80 text-[10px] uppercase">Vars / Constraints</div>
-                  <div className="text-sm font-bold font-mono mt-1">
-                    {selectedPlan.solver?.variables || '-'} /{' '}
-                    {selectedPlan.solver?.constraints || '-'}
-                  </div>
-                </div>
               </div>
+
+              <details className="text-xs rounded-xl bg-emerald-950/40 border border-emerald-800/60 p-2.5">
+                <summary className="cursor-pointer font-semibold text-emerald-300 hover:text-emerald-200 select-none">
+                  Technical solver details
+                </summary>
+                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-emerald-900/60 text-xs">
+                  <div>
+                    <span className="text-emerald-400/80 text-[10px] uppercase block">Solve Wall Time</span>
+                    <span className="font-mono font-bold text-white">
+                      {selectedPlan.solver?.solve_time_s ?? 0.01}s
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-emerald-400/80 text-[10px] uppercase block">Variables / Constraints</span>
+                    <span className="font-mono font-bold text-white">
+                      {selectedPlan.solver?.variables || '-'} / {selectedPlan.solver?.constraints || '-'}
+                    </span>
+                  </div>
+                </div>
+              </details>
 
               <div className="text-xs text-emerald-200/90 bg-emerald-900/40 p-3 rounded-xl border border-emerald-800">
                 <strong>Optimality Claim Honesty:</strong>{' '}

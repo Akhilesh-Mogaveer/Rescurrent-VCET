@@ -4,6 +4,13 @@ import { Edit3, MapPin, Plus, Search, Trash2, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import type { CrewItem, PlotItem } from '../types';
+import {
+  EmptyState,
+  InlineError,
+  SkeletonBlock,
+  useDelayedLoading,
+  useLoadTimeout,
+} from '../components/Skeleton';
 
 const MapClickSelector: React.FC<{ onPick: (lat: number, lon: number) => void }> = ({ onPick }) => {
   useMapEvents({
@@ -22,6 +29,11 @@ export const PlotsPage: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
+
+  const showSkeleton = useDelayedLoading(loading);
+  useLoadTimeout(loading, () => setTimedOut(true), 20000);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPlot, setEditingPlot] = useState<PlotItem | null>(null);
@@ -44,6 +56,8 @@ export const PlotsPage: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(null);
+    setTimedOut(false);
     try {
       const q = new URLSearchParams();
       if (search) q.set('search', search);
@@ -56,6 +70,7 @@ export const PlotsPage: React.FC = () => {
       setPlots(pList);
       setCrews(cList);
     } catch (err: any) {
+      setLoadError(err.message || 'Failed to load plots');
       pushToast('Load Failed', err.message, 'error');
     } finally {
       setLoading(false);
@@ -149,7 +164,12 @@ export const PlotsPage: React.FC = () => {
     <div className="space-y-6">
       <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#17211C]">Farm & Plot Registry</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-[#17211C]">Farm & Plot Registry</h1>
+            <span className="text-[11px] font-medium text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+              Synthetic demo data
+            </span>
+          </div>
           <p className="text-xs text-stone-600 mt-1">
             Manage arecanut farm plots, drainage classes, canopy density, current protection state,
             and interactive map coordinates.
@@ -201,8 +221,60 @@ export const PlotsPage: React.FC = () => {
 
       {/* Plots Table */}
       <div className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
-        {loading ? (
-          <div className="p-10 text-center text-xs text-stone-500">Loading farm plots...</div>
+        {timedOut || loadError ? (
+          <div className="p-4">
+            <InlineError
+              target="farm plots registry"
+              message={timedOut ? 'Request timed out after 20s. Could not load farm plots.' : undefined}
+              onRetry={loadData}
+            />
+          </div>
+        ) : showSkeleton || (loading && plots.length === 0) ? (
+          <div aria-busy="true" className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase text-[10px]">
+                  <th className="p-3.5">Plot ID</th>
+                  <th className="p-3.5">Plot & Farm Name</th>
+                  <th className="p-3.5">Area</th>
+                  <th className="p-3.5">Priority</th>
+                  <th className="p-3.5">Drainage / Canopy</th>
+                  <th className="p-3.5">Protection P(0)</th>
+                  <th className="p-3.5">Status / Crew</th>
+                  <th className="p-3.5">Updated</th>
+                  <th className="p-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <tr key={idx}>
+                    <td className="p-3.5"><SkeletonBlock height={14} width={50} /></td>
+                    <td className="p-3.5">
+                      <SkeletonBlock height={14} width={140} className="mb-1" />
+                      <SkeletonBlock height={10} width={100} />
+                    </td>
+                    <td className="p-3.5"><SkeletonBlock height={14} width={40} /></td>
+                    <td className="p-3.5"><SkeletonBlock height={18} width={60} radius={999} /></td>
+                    <td className="p-3.5"><SkeletonBlock height={14} width={90} /></td>
+                    <td className="p-3.5"><SkeletonBlock height={14} width={45} /></td>
+                    <td className="p-3.5"><SkeletonBlock height={14} width={70} /></td>
+                    <td className="p-3.5"><SkeletonBlock height={14} width={65} /></td>
+                    <td className="p-3.5 text-right"><SkeletonBlock height={20} width={50} className="ml-auto" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : plots.length === 0 ? (
+          <EmptyState
+            message="No plots match the selected filters."
+            actionLabel="Clear filters"
+            onAction={() => {
+              setSearch('');
+              setPriorityFilter('');
+              setStatusFilter('');
+            }}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
@@ -224,11 +296,6 @@ export const PlotsPage: React.FC = () => {
                   <tr key={p.id} className="hover:bg-stone-50">
                     <td className="p-3.5 font-mono font-bold text-[#17211C]">
                       {p.code}
-                      {p.is_synthetic && (
-                        <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                          SYNTHETIC
-                        </span>
-                      )}
                     </td>
                     <td className="p-3.5">
                       <div className="font-bold text-[#17211C]">{p.name}</div>

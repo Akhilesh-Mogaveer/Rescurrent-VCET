@@ -13,6 +13,7 @@ import { App } from './App';
 describe('MahaliShield Frontend Core Tests', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('supports bilingual English and Kannada translations', () => {

@@ -10,6 +10,14 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
+import {
+  InlineError,
+  SkeletonBlock,
+  SkeletonCard,
+  SkeletonTable,
+  useDelayedLoading,
+  useLoadTimeout,
+} from '../components/Skeleton';
 
 const BADGE_STYLE: Record<string, string> = {
   'VERIFIED SOURCE FACT': 'bg-emerald-100 text-emerald-900 border-emerald-300',
@@ -26,9 +34,14 @@ export const GovernancePage: React.FC = () => {
   const [decision, setDecision] = useState<'approved' | 'changes_requested' | 'comment'>('approved');
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(true);
+  const [timedOut, setTimedOut] = useState(false);
+
+  const showSkeleton = useDelayedLoading(loading);
+  useLoadTimeout(loading, () => setTimedOut(true), 20000);
 
   const loadGovernance = async () => {
     setLoading(true);
+    setTimedOut(false);
     try {
       const res = await apiRequest('/governance/overview');
       setGov(res);
@@ -65,12 +78,36 @@ export const GovernancePage: React.FC = () => {
     }
   };
 
-  if (loading && !gov) {
-    return (
-      <div className="p-12 text-center text-xs text-stone-500">
-        Loading Model Governance, Parameter Provenance & Audit Ledger...
-      </div>
-    );
+  if (!gov) {
+    if (timedOut || (!loading && !gov)) {
+      return (
+        <div className="p-6">
+          <InlineError
+            target="model governance records"
+            message={timedOut ? 'Request timed out after 20s. Could not load governance center.' : undefined}
+            onRetry={loadGovernance}
+          />
+        </div>
+      );
+    }
+
+    if (loading || showSkeleton) {
+      return (
+        <div aria-busy="true" className="space-y-6">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-3">
+            <SkeletonBlock height={20} width={220} radius={999} />
+            <SkeletonBlock height={28} width="45%" />
+            <SkeletonBlock height={14} width="65%" />
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            <SkeletonCard height={160} />
+            <SkeletonCard height={160} />
+            <SkeletonCard height={160} />
+          </div>
+          <SkeletonTable rows={5} cols={5} />
+        </div>
+      );
+    }
   }
 
   const paramSets: any[] = gov?.parameter_sets || [];
