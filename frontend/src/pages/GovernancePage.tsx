@@ -1,15 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import {
-  BookOpen,
-  CheckCircle2,
-  Database,
-  FileCheck2,
-  History,
-  MessageSquarePlus,
-  Sliders,
-} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
+import { RoleHeroBand } from '../components/RoleHeroBand';
+import { t } from '../utils/i18n';
 import {
   InlineError,
   SkeletonBlock,
@@ -28,7 +21,7 @@ const BADGE_STYLE: Record<string, string> = {
 };
 
 export const GovernancePage: React.FC = () => {
-  const { pushToast } = useApp();
+  const { lang, pushToast } = useApp();
   const [gov, setGov] = useState<any>(null);
   const [selectedSetIdx, setSelectedSetIdx] = useState<number>(1);
   const [decision, setDecision] = useState<'approved' | 'changes_requested' | 'comment'>('approved');
@@ -117,24 +110,17 @@ export const GovernancePage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
-        <span className="text-xs font-mono uppercase px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-200">
-          Transparent Scientific Governance & Provenance Ledger
-        </span>
-        <h1 className="text-2xl font-bold text-[#17211C] mt-2">
-          Data, Model Assumptions & Provenance Governance
-        </h1>
-        <p className="text-xs text-stone-600 mt-1">
-          Every weather source, twin equation coefficient, operational rule, simulation run, and
-          CP-SAT solver execution is labeled with its epistemic status.
-        </p>
-      </div>
+      <RoleHeroBand
+        roleImage="/page_img/admin.png"
+        roleLabel={t(lang, 'role_admin')}
+        heroTitle={t(lang, 'dashboard_title_admin')}
+        subtitle="Transparent scientific governance, assumptions, and provenance review."
+        showCluster
+      />
 
       {/* Epistemic Evidence Taxonomy */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-3">
         <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-emerald-700" />
           Evidence Labeling Taxonomy
         </h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
@@ -157,7 +143,6 @@ export const GovernancePage: React.FC = () => {
       <div className="grid lg:grid-cols-12 gap-6">
         <div className="lg:col-span-5 bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-4">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-            <Database className="w-4 h-4 text-emerald-700" />
             Active Weather Scenario Provenance
           </h2>
           {wMeta && (
@@ -196,7 +181,6 @@ export const GovernancePage: React.FC = () => {
           {/* Expert Feedback Form */}
           <form onSubmit={handleSubmitFeedback} className="pt-3 border-t border-stone-200 space-y-3 text-xs">
             <h3 className="font-bold text-[#17211C] flex items-center gap-1.5">
-              <MessageSquarePlus className="w-4 h-4 text-emerald-700" />
               Record Agricultural Expert Review / Sign-Off
             </h3>
             <div className="grid grid-cols-2 gap-2">
@@ -243,7 +227,6 @@ export const GovernancePage: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-emerald-700" />
                 Twin Parameter Provenance ({activeSet?.version})
               </h2>
               <p className="text-xs text-stone-500">
@@ -310,7 +293,6 @@ export const GovernancePage: React.FC = () => {
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2 mb-3">
-            <History className="w-4 h-4 text-emerald-700" />
             Simulation Run History ({gov?.simulation_runs?.length || 0})
           </h2>
           <div className="space-y-2 max-h-60 overflow-y-auto text-xs">
@@ -334,7 +316,6 @@ export const GovernancePage: React.FC = () => {
 
         <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2 mb-3">
-            <FileCheck2 className="w-4 h-4 text-emerald-700" />
             CP-SAT Solver & Validator Audit History ({gov?.solver_runs?.length || 0})
           </h2>
           <div className="space-y-2 max-h-60 overflow-y-auto text-xs">
@@ -353,8 +334,7 @@ export const GovernancePage: React.FC = () => {
                     {sr.solver?.solve_time_s}s
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 font-mono text-[10px] font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Validated
+                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 font-mono text-[10px] font-bold flex items-center gap-1"> Validated
                 </span>
               </div>
             ))}

@@ -9,7 +9,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { AlertCircle, Play, Scale } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import {
@@ -226,7 +225,6 @@ export const PolicyArenaPage: React.FC = () => {
               disabled={running}
               className="px-4 py-2 rounded-xl bg-[#0C1F17] hover:bg-emerald-950 text-white font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              <Play className="w-3.5 h-3.5 fill-current" />
               {running ? 'Evaluating...' : 'Re-Run Arena'}
             </button>
             <ActionStatusLine
@@ -241,7 +239,6 @@ export const PolicyArenaPage: React.FC = () => {
         </div>
 
         <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-700 flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
           <div>
             <strong>Fairness Guarantee:</strong> All three policies use the same{' '}
             <code>ListScheduler</code> / <code>CP-SAT</code> hard resource rules (shifts, travel
@@ -401,7 +398,6 @@ export const PolicyArenaPage: React.FC = () => {
       {/* Complete Metrics Table with Absolute & Percentage Differences */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs overflow-x-auto">
         <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2 mb-4">
-          <Scale className="w-4 h-4 text-emerald-700" />
           Comprehensive Policy Comparison Matrix (Absolute Values & % Deltas)
         </h2>
         <table className="w-full text-left border-collapse text-xs">

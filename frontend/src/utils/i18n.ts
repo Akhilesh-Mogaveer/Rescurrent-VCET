@@ -24,7 +24,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     offline_cached: 'Offline Snapshot Ready',
     synthetic_badge: 'SYNTHETIC DEMO DATA',
     live_badge: 'LIVE OPEN-METEO ENSEMBLE',
-    // simulated_badge: 'SIMULATED RESULT — NOT DISEASE PROBABILITY',
+    authenticated_disclaimer: 'Synthetic demo data · Simulated exposure, not disease probability',
     farmer_portal_title: 'Grower Protection Advisory & Schedule View',
     next_approved_plan: 'Next Approved Operational Plan',
     why_prioritized: 'Why Your Plot is Prioritized',
@@ -44,6 +44,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     my_plots_title: 'My Plots',
     my_operations_title: 'Upcoming Operations',
     next_dry_window_title: 'Next Dry Spray Window',
+    no_plots_need_attention: 'No plots currently need attention.',
   },
   kn: {
     tagline: 'ಮಳೆಯ ನಡುವಿನ ಬಿಡುವನ್ನು ಗೆಲ್ಲಿರಿ.',
@@ -68,7 +69,8 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     offline_cached: 'ಆಫ್‌ಲೈನ್ ಯೋಜನೆ ಲಭ್ಯವಿದೆ',
     synthetic_badge: 'ಕೃತಕ ಪ್ರಾಯೋಗಿಕ ದತ್ತಾಂಶ (SYNTHETIC)',
     live_badge: 'ನೇರ ಹವಾಮಾನ ಮುನ್ಸೂಚನೆ (LIVE)',
-    simulated_badge: 'ಸಿಮ್ಯುಲೇಟೆಡ್ ಫಲಿತಾಂಶ — ರೋಗದ ಸಂಭವನೀಯತೆಯಲ್ಲ',
+    // NOTE: The following Kannada translation requires review by a native Kannada speaker
+    authenticated_disclaimer: 'ಕೃತಕ ಪ್ರಾಯೋಗಿಕ ದತ್ತಾಂಶ · ಸಿಮ್ಯುಲೇಟೆಡ್ ಎಕ್ಸ್‌ಪೋಸರ್, ರೋಗದ ಸಂಭವನೀಯತೆಯಲ್ಲ',
     farmer_portal_title: 'ರೈತರ ತೋಟ ರಕ್ಷಣಾ ವೇಳಾಪಟ್ಟಿ ಮತ್ತು ಮಾಹಿತಿ',
     next_approved_plan: 'ಮುಂದಿನ ಅನುಮೋದಿತ ಕಾರ್ಯಾಚರಣೆ ಯೋಜನೆ',
     why_prioritized: 'ನಿಮ್ಮ ಪ್ಲಾಟ್‌ಗೆ ಏಕೆ ಆದ್ಯತೆ ನೀಡಲಾಗಿದೆ',
@@ -89,9 +91,11 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     my_plots_title: 'ನನ್ನ ಪ್ಲಾಟ್‌ಗಳು',
     my_operations_title: 'ಮುಂಬರುವ ಕಾರ್ಯಾಚರಣೆಗಳು',
     next_dry_window_title: 'ಮುಂದಿನ ಒಣ ಮಳೆ ಬಿಡುವು',
+    // NOTE: The following Kannada translation requires review by a native Kannada speaker
+    no_plots_need_attention: 'ಪ್ರಸ್ತುತ ಯಾವುದೇ ಪ್ಲಾಟ್‌ಗಳಿಗೆ ಗಮನದ ಅಗತ್ಯವಿಲ್ಲ.',
   },
 };
 
 export function t(lang: Lang, key: string): string {
-  return TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
+  return TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || '';
 }

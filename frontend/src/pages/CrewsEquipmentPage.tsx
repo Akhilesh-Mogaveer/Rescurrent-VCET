@@ -1,13 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Plus,
-  Settings2,
-  ShieldAlert,
-  Users,
-  Wrench,
-} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import type { CrewItem, EquipmentItem, TaskRuleItem } from '../types';
@@ -201,11 +192,11 @@ export const CrewsEquipmentPage: React.FC = () => {
         <div className="flex items-center gap-2">
           {conflicts.length === 0 ? (
             <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-700" /> 0 Active Resource Conflicts
+              <span className="text-emerald-700 font-semibold">Pass</span> 0 Active Resource Conflicts
             </span>
           ) : (
             <span className="px-3 py-1.5 rounded-xl bg-red-50 border border-red-300 text-red-900 text-xs font-bold flex items-center gap-1.5">
-              <AlertTriangle className="w-4 h-4 text-red-700" /> {conflicts.length} Resource
+              <strong className="text-red-700">Error</strong> {conflicts.length} Resource
               Conflict(s) Detected
             </span>
           )}
@@ -216,7 +207,7 @@ export const CrewsEquipmentPage: React.FC = () => {
       {conflicts.length > 0 && (
         <div className="bg-red-950 text-red-50 rounded-2xl p-5 border border-red-700 space-y-2">
           <div className="text-xs font-bold uppercase tracking-wider text-red-300 flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4" /> Resource Conflicts Detected Against Active Plan
+            <strong>Warning</strong> Resource Conflicts Detected Against Active Plan
           </div>
           {conflicts.map((c, idx) => (
             <div key={idx} className="text-xs bg-red-900/50 p-2.5 rounded-lg border border-red-800">
@@ -231,7 +222,7 @@ export const CrewsEquipmentPage: React.FC = () => {
         {/* Crews Column */}
         <div className="lg:col-span-7 bg-white rounded-2xl border border-stone-200 p-5 space-y-4">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-            <Users className="w-4 h-4 text-emerald-700" /> Field Protection & Inspection Crews
+            Field Protection & Inspection Crews
           </h2>
 
           <div className="space-y-3">
@@ -314,7 +305,7 @@ export const CrewsEquipmentPage: React.FC = () => {
               type="submit"
               className="px-3 py-2 rounded-lg bg-[#0C1F17] text-white font-bold flex items-center justify-center gap-1 cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5" /> Add Crew
+              Add Crew
             </button>
           </form>
         </div>
@@ -322,7 +313,7 @@ export const CrewsEquipmentPage: React.FC = () => {
         {/* Equipment Column */}
         <div className="lg:col-span-5 bg-white rounded-2xl border border-stone-200 p-5 space-y-4">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-            <Wrench className="w-4 h-4 text-emerald-700" /> Sprayer & Inspection Equipment Registry
+            Sprayer & Inspection Equipment Registry
           </h2>
 
           <div className="space-y-3">
@@ -390,7 +381,7 @@ export const CrewsEquipmentPage: React.FC = () => {
               type="submit"
               className="px-3 py-2 rounded-lg bg-[#0C1F17] text-white font-bold flex items-center justify-center gap-1 cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5" /> Add Unit
+              Add Unit
             </button>
           </form>
         </div>
@@ -399,7 +390,7 @@ export const CrewsEquipmentPage: React.FC = () => {
       {/* Approved Operational Rules */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
         <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2 mb-4">
-          <Settings2 className="w-4 h-4 text-emerald-700" /> Approved Operational Task Rules
+          Approved Operational Task Rules
           (Used by Optimizer & Validator)
         </h2>
         <div className="grid md:grid-cols-2 gap-4">

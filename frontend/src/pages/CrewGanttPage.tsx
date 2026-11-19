@@ -1,13 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import {
-  AlertTriangle,
-  CalendarClock,
-  CheckCircle2,
-  Filter,
-  GitCompare,
-  Lock,
-  Truck,
-} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest, cacheApprovedPlan } from '../services/api';
 import type { AssignmentItem, CrewItem, PlanItem } from '../types';
@@ -180,8 +171,7 @@ export const CrewGanttPage: React.FC = () => {
             <button
               onClick={handleApprove}
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-            >
-              <CheckCircle2 className="w-4 h-4" /> Approve Plan #{plan.id}
+            > Approve Plan #{plan.id}
             </button>
           )}
         </div>
@@ -190,8 +180,7 @@ export const CrewGanttPage: React.FC = () => {
       {/* Filters & Legend */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 flex flex-wrap items-center justify-between gap-4 text-xs">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="font-bold text-stone-700 flex items-center gap-1">
-            <Filter className="w-3.5 h-3.5 text-emerald-700" /> Filter:
+          <span className="font-bold text-stone-700 flex items-center gap-1"> Filter:
           </span>
           <select
             value={crewFilter}
@@ -381,7 +370,6 @@ export const CrewGanttPage: React.FC = () => {
       <div className="grid lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2 mb-3">
-            <CalendarClock className="w-4 h-4 text-emerald-700" />
             Selected Gantt Task Inspector
           </h2>
           {selectedAsg ? (
@@ -401,16 +389,14 @@ export const CrewGanttPage: React.FC = () => {
                     Slots {selectedAsg.start_slot}–{selectedAsg.end_slot} (
                     {selectedAsg.duration_minutes} min)
                   </div>
-                  <div className="text-stone-500 flex items-center justify-end gap-1">
-                    <Truck className="w-3.5 h-3.5 text-amber-600" /> Travel buffer:{' '}
+                  <div className="text-stone-500 flex items-center justify-end gap-1"> Travel buffer:{' '}
                     {selectedAsg.travel_minutes} min
                   </div>
                 </div>
               </div>
 
               {selectedAsg.frozen && (
-                <div className="p-2.5 rounded-lg bg-stone-100 border border-stone-300 text-stone-800 flex items-center gap-2 font-semibold">
-                  <Lock className="w-4 h-4 text-stone-700" /> Frozen Task ({selectedAsg.status}):
+                <div className="p-2.5 rounded-lg bg-stone-100 border border-stone-300 text-stone-800 flex items-center gap-2 font-semibold"> Frozen Task ({selectedAsg.status}):
                   Completed or in-progress work is immutable during replanning.
                 </div>
               )}
@@ -429,7 +415,6 @@ export const CrewGanttPage: React.FC = () => {
         {/* Unassigned Tasks & Plan Version Diff Summary */}
         <div className="lg:col-span-5 bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-3">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-            <GitCompare className="w-4 h-4 text-emerald-700" />
             Unassigned Tasks & Schedule Conflicts ({plan?.unscheduled?.length || 0})
           </h2>
           {plan?.unscheduled && plan.unscheduled.length > 0 ? (
@@ -440,7 +425,6 @@ export const CrewGanttPage: React.FC = () => {
                   className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950"
                 >
                   <div className="font-bold flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
                     {u.plot_code} ({u.task_key})
                   </div>
                   <div className="text-[11px] mt-1">{u.reasons.join(' · ')}</div>

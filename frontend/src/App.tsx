@@ -32,7 +32,7 @@ class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-[#F6F5F0] p-8">
+        <div className="min-h-screen flex items-center justify-center bg-[var(--page-bg)] p-8">
           <div className="max-w-lg w-full bg-white rounded-2xl border border-red-200 p-6 shadow-sm space-y-3">
             <h1 className="text-lg font-bold text-red-900">Application Interface Error</h1>
             <p className="text-xs text-stone-600">{this.state.error?.message}</p>

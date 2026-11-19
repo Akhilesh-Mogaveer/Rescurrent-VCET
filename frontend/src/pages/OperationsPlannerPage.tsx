@@ -1,14 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  AlertTriangle,
-  ArrowRight,
-  CheckCircle2,
-  Cpu,
-  Play,
-  ShieldCheck,
-  XCircle,
-} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest, cacheApprovedPlan } from '../services/api';
 import type { PlanItem } from '../types';
@@ -128,7 +119,7 @@ export const OperationsPlannerPage: React.FC = () => {
             to="/gantt"
             className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-xs font-bold text-[#17211C] flex items-center gap-1.5 self-start"
           >
-            Open Interactive Gantt <ArrowRight className="w-4 h-4" />
+            Open Interactive Gantt
           </Link>
         </div>
 
@@ -187,7 +178,6 @@ export const OperationsPlannerPage: React.FC = () => {
               disabled={solving}
               className="w-full py-2.5 px-4 rounded-xl bg-[#0C1F17] hover:bg-emerald-950 text-white font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Play className="w-4 h-4 fill-current" />
               {solving ? 'Solving CP-SAT...' : 'Solve & Validate Plan'}
             </button>
             <ActionStatusLine
@@ -307,7 +297,6 @@ export const OperationsPlannerPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-700" />
                     Independent First-Principles Constraint Validator
                   </h2>
                   <p className="text-xs text-stone-500">
@@ -336,11 +325,9 @@ export const OperationsPlannerPage: React.FC = () => {
                     }`}
                   >
                     <span className="font-mono text-[11px]">{chk.check}</span>
-                    {chk.passed ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-red-600 shrink-0" />
-                    )}
+                    <span className={chk.passed ? 'text-emerald-700 font-semibold' : 'text-red-700 font-semibold'}>
+                      {chk.passed ? 'Pass' : 'Fail'}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -351,7 +338,6 @@ export const OperationsPlannerPage: React.FC = () => {
           {selectedPlan.unscheduled && selectedPlan.unscheduled.length > 0 && (
             <div className="bg-amber-50 rounded-2xl border border-amber-300 p-5 space-y-2">
               <div className="text-xs font-bold uppercase text-amber-900 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-700" />
                 Unscheduled Tasks & Infeasibility Explanations ({selectedPlan.unscheduled.length})
               </div>
               <div className="grid md:grid-cols-2 gap-3 text-xs">
@@ -379,7 +365,6 @@ export const OperationsPlannerPage: React.FC = () => {
           <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-emerald-700" />
                 Computed Assignments & Explainable Reasoning ({selectedPlan.assignments?.length || 0}{' '}
                 Tasks)
               </h2>

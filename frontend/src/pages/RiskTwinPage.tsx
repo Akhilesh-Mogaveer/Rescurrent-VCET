@@ -10,7 +10,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Activity, AlertCircle, Play, ShieldAlert, Sliders } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import {
@@ -171,7 +170,6 @@ export const RiskTwinPage: React.FC = () => {
               disabled={running}
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              <Play className="w-3.5 h-3.5 fill-current" />
               {running ? 'Simulating...' : 'Re-Run Twin'}
             </button>
             <ActionStatusLine
@@ -186,7 +184,6 @@ export const RiskTwinPage: React.FC = () => {
 
         {/* Scientific Disclaimer Box */}
         <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-950 flex items-start gap-2.5">
-          <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
           <div>
             <strong>Scientific Scope & Limitations:</strong> {simData?.scientific_disclaimer} These
             equations represent configurable operational decision-support proxies for comparing
@@ -200,7 +197,6 @@ export const RiskTwinPage: React.FC = () => {
         {/* Left Plot Priority Queue Selector */}
         <div className="lg:col-span-4 bg-white rounded-2xl border border-stone-200 p-5 flex flex-col">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2 mb-3">
-            <ShieldAlert className="w-4 h-4 text-emerald-700" />
             Select Plot to Inspect Prioritization
           </h2>
           <div className="space-y-2 overflow-y-auto max-h-[520px] pr-1">
@@ -255,7 +251,6 @@ export const RiskTwinPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-base font-bold text-[#17211C] flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-emerald-700" />
                   Plot {currentSummary?.code} — Wetness W(t), Hazard H(t), Protection P(t) &
                   Relative Exposure E(t)
                 </h2>
@@ -273,52 +268,16 @@ export const RiskTwinPage: React.FC = () => {
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e5" />
                   <XAxis dataKey="hour" tick={{ fontSize: 11 }} interval={5} />
                   <YAxis domain={[0, 1]} tick={{ fontSize: 11 }} />
                   <Tooltip />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line
-                    type="monotone"
-                    dataKey="wetness_p50"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Wetness Proxy W(t) [Median]"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="hazard_p50"
-                    stroke="#d97706"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Hazard Proxy H(t) [Median]"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="protection_p50"
-                    stroke="#059669"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Protection State P(t) [Median]"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="exposure_p50"
-                    stroke="#dc2626"
-                    strokeWidth={2.5}
-                    dot={false}
-                    name="Relative Exposure E(t) [Median]"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="exposure_p90"
-                    stroke="#ef4444"
-                    strokeDasharray="4 4"
-                    strokeWidth={1.5}
-                    dot={false}
-                    name="Relative Exposure E(t) [P90]"
-                  />
+                  <Line type="monotone" dataKey="wetness_p50" stroke="#2563eb" strokeWidth={2} dot={false} name="Wetness Proxy W(t) [Median]" />
+                  <Line type="monotone" dataKey="hazard_p50" stroke="#d97706" strokeWidth={2} dot={false} name="Hazard Proxy H(t) [Median]" />
+                  <Line type="monotone" dataKey="protection_p50" stroke="#059669" strokeWidth={2} dot={false} name="Protection State P(t) [Median]" />
+                  <Line type="monotone" dataKey="exposure_p50" stroke="#dc2626" strokeWidth={2.5} dot={false} name="Relative Exposure E(t) [Median]" />
+                  <Line type="monotone" dataKey="exposure_p90" stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1.5} dot={false} name="Relative Exposure E(t) [P90]" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -352,7 +311,6 @@ export const RiskTwinPage: React.FC = () => {
           <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-emerald-700" />
                 Model Parameters ({sensitivity.toUpperCase()} Sensitivity)
               </h3>
               <p className="text-xs text-stone-500 mt-0.5">

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Bot, CheckCircle2, Send, ShieldCheck, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import type { PlanItem } from '../types';
@@ -99,7 +98,6 @@ export const AssistantPage: React.FC = () => {
               Safe Validated AI Pipeline · Deterministic Template Fallback
             </span>
             <h1 className="text-2xl font-bold text-[#17211C] mt-2 flex items-center gap-2">
-              <Bot className="w-6 h-6 text-emerald-700" />
               MahaliShield Intelligence Assistant
             </h1>
             <p className="text-xs text-stone-600 mt-1">
@@ -135,7 +133,6 @@ export const AssistantPage: React.FC = () => {
             onClick={() => sendQuery(q)}
             className="px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-50 border border-stone-300 hover:border-emerald-500 text-xs font-semibold text-[#17211C] flex items-center gap-1.5 transition cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
             {q}
           </button>
         ))}
@@ -177,7 +174,6 @@ export const AssistantPage: React.FC = () => {
                   {m.response?.proposal && (
                     <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 space-y-2">
                       <div className="font-bold text-amber-950 flex items-center gap-1.5">
-                        <ShieldCheck className="w-4 h-4 text-amber-700" />
                         Validated Constraint Proposal (Requires Confirmation Before CP-SAT Execution)
                       </div>
                       <div className="text-amber-900">{m.response.proposal.summary}</div>
@@ -192,7 +188,6 @@ export const AssistantPage: React.FC = () => {
                         disabled={executingProposal}
                         className="px-4 py-2 rounded-lg bg-[#0C1F17] hover:bg-emerald-950 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                         {executingProposal
                           ? 'Executing CP-SAT...'
                           : 'Confirm & Run CP-SAT Replanning'}
@@ -224,9 +219,9 @@ export const AssistantPage: React.FC = () => {
               >
                 <span className="text-xs text-stone-600 font-medium">Assistant is thinking</span>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce [animation-delay:0ms]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce [animation-delay:150ms]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce [animation-delay:300ms]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 typing-dot" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 typing-dot" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 typing-dot" />
                 </div>
               </div>
             </div>
@@ -252,8 +247,7 @@ export const AssistantPage: React.FC = () => {
             type="submit"
             disabled={loading}
             className="px-5 py-2.5 rounded-xl bg-[#0C1F17] hover:bg-emerald-950 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-          >
-            <Send className="w-3.5 h-3.5" /> Ask Assistant
+          > Ask Assistant
           </button>
         </form>
       </div>

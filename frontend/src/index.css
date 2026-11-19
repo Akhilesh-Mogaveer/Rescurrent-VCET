@@ -1,10 +1,27 @@
 @import "tailwindcss";
 
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-sans/700.css";
+
+@import "@fontsource/noto-sans-kannada/400.css";
+@import "@fontsource/noto-sans-kannada/500.css";
+@import "@fontsource/noto-sans-kannada/700.css";
+
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+@theme {
+  --font-sans: 'IBM Plex Sans', 'Noto Sans Kannada', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 :root {
   --radius: 6px;
   --border: #e5e7eb;
   --surface: #ffffff;
-  --page-bg: #f6f5f1;
+  --page-bg: #F3F6F3;
   --text: #111827;
   --muted: #6b7280;
   --accent: #047857;
@@ -16,21 +33,69 @@
   --forest-800: #183a2c;
   --emerald-600: #059669;
   --emerald-500: #10b981;
-  --surface-cream: #f6f5f0;
+  --surface-cream: #F3F6F3;
   --surface-card: #ffffff;
   --ink-900: #17211c;
 }
 
 body {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: var(--page-bg, #f6f5f1);
+  font-family: 'IBM Plex Sans', 'Noto Sans Kannada', system-ui, sans-serif;
+  background-color: var(--page-bg, #F3F6F3);
   color: var(--text, #111827);
   margin: 0;
+}
+
+/* Tabular numbers for tables, KPI values, and chart readouts */
+table,
+th,
+td,
+.kpi-strip,
+.kpi-strip-value,
+.recharts-wrapper text,
+.recharts-default-tooltip,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 .leaflet-container {
   font-family: inherit;
   z-index: 10;
+}
+
+/* ==========================================================================
+   Leaflet Zoom Controls (Scoped to Coordinator Command Center Map)
+   ========================================================================== */
+.command-center-map .leaflet-bar {
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.command-center-map .leaflet-bar a {
+  background-color: #ffffff;
+  color: #111827;
+  border-bottom: 1px solid #e5e7eb;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.command-center-map .leaflet-bar a:last-child {
+  border-bottom: none;
+}
+
+.command-center-map .leaflet-bar a:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.command-center-map .leaflet-bar a:first-child {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.command-center-map .leaflet-bar a:last-child {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
 }
 
 /* ==========================================================================
@@ -53,6 +118,41 @@ body {
   .skeleton-pulse {
     animation: none !important;
     opacity: 1 !important;
+  }
+}
+
+/* ==========================================================================
+   Assistant Typing Indicator Soft Opacity Pulse (Staggered 150ms per dot)
+   ========================================================================== */
+@keyframes typingDotPulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.typing-dot {
+  animation: typingDotPulse 1.2s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 300ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot {
+    animation: none !important;
+    opacity: 0.7 !important;
   }
 }
 

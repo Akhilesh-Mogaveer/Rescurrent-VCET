@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { KeyRound, Lock, Mail, ShieldCheck } from 'lucide-react';
+import { KeyRound, Lock, Mail } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import type { User } from '../types';
 
 interface RoleCardConfig {
   id: string;
-  num: string;
   title: string;
   roleKey: 'coordinator' | 'farmer' | 'admin';
   desc: string;
@@ -22,7 +21,6 @@ interface RoleCardConfig {
 const ROLES: RoleCardConfig[] = [
   {
     id: 'coordinator',
-    num: '01',
     title: 'Cooperative Coordinator',
     roleKey: 'coordinator',
     desc: 'Plan crews, sprayers, and schedules.',
@@ -35,7 +33,6 @@ const ROLES: RoleCardConfig[] = [
   },
   {
     id: 'grower',
-    num: '02',
     title: 'Arecanut Grower',
     roleKey: 'farmer',
     desc: 'Plot advice in Kannada and English.',
@@ -48,7 +45,6 @@ const ROLES: RoleCardConfig[] = [
   },
   {
     id: 'expert',
-    num: '03',
     title: 'Agricultural Expert',
     roleKey: 'admin',
     desc: 'Model governance, provenance, and audit.',
@@ -410,8 +406,8 @@ export const AuthPage: React.FC = () => {
         {/* Top Header Row */}
         <div>
           <div className="auth-entrance-1 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6 text-emerald-400" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="MahaliShield" className="w-full h-full object-contain" />
             </div>
             <div className="font-bold tracking-tight text-xl text-white leading-none">
               MAHALISHIELD
@@ -470,10 +466,7 @@ export const AuthPage: React.FC = () => {
                     >
                       {/* Top content area */}
                       <div className="p-5 pb-2">
-                        <div className="font-mono text-xs font-bold" style={{ color: card.accent }}>
-                          {card.num}
-                        </div>
-                        <h2 className="text-xl font-semibold text-white mt-1 leading-snug">
+                        <h2 className="text-xl font-semibold text-white leading-snug">
                           {card.title}
                         </h2>
                         <p className="auth-card-desc">

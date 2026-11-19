@@ -13,15 +13,13 @@ import {
   Cpu,
   Database,
   Globe,
-  Layers,
   LayoutDashboard,
   LogOut,
-  MapPin,
   Menu,
+  MapPin,
   Play,
   Scale,
   Settings as SettingsIcon,
-  ShieldCheck,
   Users,
   X,
 } from 'lucide-react';
@@ -40,6 +38,7 @@ export const AppLayout: React.FC = () => {
   const [scheduleOpen, setScheduleOpen] = useState(true);
   const sidebarRef = useRef<HTMLElement>(null);
   const isDashboard = location.pathname === '/' || location.pathname === '/grower';
+  const homePath = user?.role === 'farmer' ? '/grower' : user?.role === 'admin' ? '/governance' : '/';
 
   // Post-login full-screen splash: once per session (tracked with sessionStorage)
   const [splashState, setSplashState] = useState<'showing' | 'fading' | 'hidden'>(() => {
@@ -152,7 +151,7 @@ export const AppLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F6F5F0] text-[#17211C]">
+    <div className="min-h-screen flex bg-[var(--page-bg)] text-[#17211C]">
       {/* Desktop 12px invisible hover strip along left edge */}
       <div
         className="hidden lg:block fixed inset-y-0 left-0 w-3 z-30 pointer-events-auto"
@@ -189,17 +188,17 @@ export const AppLayout: React.FC = () => {
       >
         <div className="px-6 py-5 border-b border-emerald-900/60 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6 text-emerald-400" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="MahaliShield" className="w-full h-full object-contain" />
             </div>
-            <div>
+            <NavLink to={homePath} aria-label="Go to home">
               <div className="font-bold tracking-tight text-lg text-white leading-none">
                 MAHALISHIELD
               </div>
               <div className="text-[11px] text-emerald-300/80 mt-1 font-medium">
                 {t(lang, 'tagline')}
               </div>
-            </div>
+            </NavLink>
           </div>
           <button
             className="text-emerald-300 hover:text-white p-1 rounded-lg"
@@ -696,20 +695,17 @@ export const AppLayout: React.FC = () => {
                 aria-expanded={sidebarOpen}
                 aria-label="Open navigation"
               >
-                <Menu className="w-5 h-5" />
+                <Menu className="w-5 h-5" aria-hidden="true" />
               </button>
-              <div className="font-bold tracking-tight text-stone-900 text-sm hidden sm:block">
-                MAHALISHIELD
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                  Thirthahalli Cluster · Shivamogga, KA
+              <NavLink
+                to={homePath}
+                aria-label="Go to home"
+                className="flex items-center gap-2 hidden sm:flex"
+              >
+                <span className="font-bold tracking-tight text-stone-900 text-sm">
+                  MAHALISHIELD
                 </span>
-                <span className="text-[11px] font-medium text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                  <Layers className="w-3 h-3 text-amber-700" />
-                  {t(lang, 'simulated_badge')}
-                </span>
-              </div>
+              </NavLink>
             </div>
 
             <div className="flex items-center gap-2.5">
@@ -742,6 +738,9 @@ export const AppLayout: React.FC = () => {
           <Suspense fallback={<GenericPageSkeleton />}>
             <Outlet context={{ openSidebar: () => setSidebarOpen(true), sidebarOpen }} />
           </Suspense>
+          <p className="px-4 pb-4 text-center text-xs text-stone-500">
+            {t(lang, 'authenticated_disclaimer')}
+          </p>
         </main>
       </div>
 
@@ -771,8 +770,8 @@ export const AppLayout: React.FC = () => {
             onError={() => setBgImageFailed(true)}
           />
           <div className="flex flex-col items-center text-center space-y-4 max-w-md">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
-              <ShieldCheck className="w-8 h-8 text-emerald-400" />
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="MahaliShield" className="w-full h-full object-contain" />
             </div>
             <div className="font-extrabold tracking-tight text-2xl text-white">
               MAHALISHIELD

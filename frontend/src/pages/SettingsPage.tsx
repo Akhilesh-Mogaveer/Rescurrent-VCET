@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Globe, Save, Shield, Sliders, User as UserIcon } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import {
@@ -105,7 +104,6 @@ export const SettingsPage: React.FC = () => {
           className="lg:col-span-7 bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-4 text-xs"
         >
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-            <UserIcon className="w-4 h-4 text-emerald-700" />
             User Profile & Regional Preferences
           </h2>
 
@@ -132,8 +130,7 @@ export const SettingsPage: React.FC = () => {
 
           <div className="grid sm:grid-cols-3 gap-4">
             <div>
-              <label className="block font-semibold text-stone-700 mb-1 flex items-center gap-1">
-                <Globe className="w-3.5 h-3.5 text-emerald-700" /> Interface Language
+              <label className="block font-semibold text-stone-700 mb-1 flex items-center gap-1"> Interface Language
               </label>
               <select
                 value={lang}
@@ -184,7 +181,6 @@ export const SettingsPage: React.FC = () => {
             disabled={saving}
             className="px-5 py-2.5 rounded-xl bg-[#0C1F17] hover:bg-emerald-950 text-white font-bold flex items-center gap-2 cursor-pointer"
           >
-            <Save className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save Profile & Preferences'}
           </button>
         </form>
@@ -192,7 +188,6 @@ export const SettingsPage: React.FC = () => {
         {/* Security & Role Info */}
         <div className="lg:col-span-5 bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-4 text-xs">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-            <Shield className="w-4 h-4 text-emerald-700" />
             Account Security & Role Access Level
           </h2>
           <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
@@ -218,7 +213,6 @@ export const SettingsPage: React.FC = () => {
           {user?.role === 'admin' && (
             <div className="pt-3 border-t border-stone-200 space-y-2">
               <h3 className="font-bold text-[#17211C] flex items-center gap-1.5">
-                <Sliders className="w-3.5 h-3.5 text-emerald-700" />
                 Administrator User Role Control
               </h3>
               {usersTimedOut || usersError ? (

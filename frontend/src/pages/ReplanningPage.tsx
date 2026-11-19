@@ -1,17 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Clock,
-  CloudLightning,
-  Compass,
-  History,
-  Lock,
-  Play,
-  ShieldCheck,
-  UserX,
-  WifiOff,
-  Wrench,
-  Zap,
-} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import type { CrewItem, EquipmentItem, PlanItem, PlotItem } from '../types';
@@ -242,7 +229,6 @@ export const ReplanningPage: React.FC = () => {
           <div className="grid lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-4">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-            <Compass className="w-4 h-4 text-emerald-700" />
             1. Select Operational Disruption Event
           </h2>
 
@@ -251,41 +237,34 @@ export const ReplanningPage: React.FC = () => {
               {
                 id: 'early_rain',
                 label: '1. Early Rainfall Arrival',
-                icon: CloudLightning,
                 desc: 'Squall narrows dry window',
               },
               {
                 id: 'crew_unavailable',
                 label: '2. Crew Unavailable',
-                icon: UserX,
                 desc: 'Crew off-duty from slot',
               },
               {
                 id: 'equipment_failure',
                 label: '3. Equipment Failure',
-                icon: Wrench,
                 desc: 'Sprayer rig breakdown',
               },
               {
                 id: 'urgent_priority',
                 label: '4. Urgent Plot Escalation',
-                icon: Zap,
                 desc: 'Plot raised to URGENT (2.0x)',
               },
               {
                 id: 'task_overrun',
                 label: '5. Task Duration Overrun',
-                icon: Clock,
                 desc: 'In-progress task takes longer',
               },
               {
                 id: 'weather_unavailable',
                 label: '6. Weather Data Stale',
-                icon: WifiOff,
                 desc: 'Raises min dry prob +15%',
               },
             ].map((item) => {
-              const Icon = item.icon;
               const active = disruptionType === item.id;
               return (
                 <button
@@ -298,9 +277,6 @@ export const ReplanningPage: React.FC = () => {
                       : 'bg-stone-50 hover:bg-stone-100 border-stone-200 text-[#17211C]'
                   }`}
                 >
-                  <Icon
-                    className={`w-4 h-4 mb-1.5 ${active ? 'text-emerald-400' : 'text-emerald-700'}`}
-                  />
                   <div className="font-bold">{item.label}</div>
                   <div className={`text-[10px] mt-0.5 ${active ? 'text-emerald-200' : 'text-stone-500'}`}>
                     {item.desc}
@@ -461,7 +437,6 @@ export const ReplanningPage: React.FC = () => {
                 disabled={running || !basePlan}
                 className="w-full py-3 rounded-xl bg-[#0C1F17] hover:bg-emerald-950 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                <Play className="w-4 h-4 fill-current" />
                 {running
                   ? 'Freezing Completed Work & Re-Optimizing...'
                   : `Trigger ${disruptionType.toUpperCase()} & Replan From Plan #${basePlan?.id}`}
@@ -481,7 +456,6 @@ export const ReplanningPage: React.FC = () => {
         {/* Right Plan Version History */}
         <div className="lg:col-span-5 bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-4">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-            <History className="w-4 h-4 text-emerald-700" />
             Plan Lineage & Version History ({versions.length} Versions)
           </h2>
 
@@ -523,7 +497,6 @@ export const ReplanningPage: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div>
             <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-700" />
               Schedule Replanning Diff & Assignment Change Explanations
             </h2>
             <p className="text-xs text-stone-500">
@@ -572,7 +545,6 @@ export const ReplanningPage: React.FC = () => {
                             : 'bg-amber-100 text-amber-900'
                         }`}
                       >
-                        {d.change.startsWith('frozen') && <Lock className="w-3 h-3" />}
                         {d.change}
                       </span>
                     </td>

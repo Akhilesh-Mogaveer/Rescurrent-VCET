@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
-
 /* ==========================================================================
    1. TIMING HOOKS
    ========================================================================== */
@@ -327,7 +325,6 @@ export const InlineError: React.FC<InlineErrorProps> = ({
       className={`p-4 rounded-[6px] border border-red-200 bg-red-50/90 text-red-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${className}`}
     >
       <div className="flex items-center gap-2">
-        <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
         <span className="font-medium">{displayMessage}</span>
       </div>
       <button
@@ -432,20 +429,17 @@ export const ActionStatusLine: React.FC<ActionStatusLineProps> = ({
     >
       {isRunning && (
         <>
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600 shrink-0" />
           <span className="text-stone-700 font-medium">
             {actionName}... {elapsed}s{timeLimit ? ` of up to ${timeLimit}s` : ''}
           </span>
         </>
       )}
       {!isRunning && isDone && (
-        <span className="text-emerald-700 font-semibold flex items-center gap-1">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Done
+        <span className="text-emerald-700 font-semibold flex items-center gap-1"> Done
         </span>
       )}
       {!isRunning && error && (
         <span className="text-red-700 font-medium flex items-center gap-2">
-          <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
           <span>{error}</span>
           {onRetry && (
             <button

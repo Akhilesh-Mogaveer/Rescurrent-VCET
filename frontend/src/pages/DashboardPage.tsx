@@ -1,15 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CircleMarker, MapContainer, Popup, TileLayer } from 'react-leaflet';
-import {
-  ArrowRight,
-  CalendarClock,
-  Compass,
-  Cpu,
-  MapPin,
-  RefreshCw,
-  ShieldAlert,
-} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   apiRequest,
@@ -45,6 +36,8 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [offlineMode, setOfflineMode] = useState(false);
   const [selectedPlotId, setSelectedPlotId] = useState<number | null>(null);
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
+  const [showAllFactors, setShowAllFactors] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
 
   // Long-running optimizer state
@@ -179,7 +172,7 @@ export const DashboardPage: React.FC = () => {
         disabled={optimizing}
         className="px-4 py-2 rounded-[6px] bg-[#047857] hover:bg-[#065f46] text-white font-semibold text-sm flex items-center gap-2 transition cursor-pointer shrink-0 disabled:opacity-50"
       >
-        <Cpu className="w-4 h-4" /> Run CP-SAT Optimizer
+        Run CP-SAT Optimizer
       </button>
       <button
         type="button"
@@ -188,7 +181,6 @@ export const DashboardPage: React.FC = () => {
         title="Refresh data"
         className="p-2 rounded-[6px] border border-white/25 bg-[rgba(4,16,10,0.55)] hover:bg-[rgba(4,16,10,0.85)] text-white transition cursor-pointer flex items-center justify-center shrink-0"
       >
-        <RefreshCw className={`w-4 h-4 text-emerald-200 ${loading ? 'animate-spin' : ''}`} />
       </button>
       <ActionStatusLine
         isRunning={optimizing}
@@ -211,6 +203,7 @@ export const DashboardPage: React.FC = () => {
         heroTitle={heroTitle}
         actions={heroActions}
         offlineMode={offlineMode}
+        showCluster={user?.role === 'coordinator' || user?.role === 'farmer'}
       />
 
       {/* Main Dashboard Content Area: 24px padding and 24px spacing between sections */}
@@ -307,8 +300,7 @@ export const DashboardPage: React.FC = () => {
           <div className="lg:col-span-7 bg-white rounded-[6px] border border-[#e5e7eb] overflow-hidden flex flex-col justify-between">
             <div className="p-4 border-b border-[#e5e7eb] flex items-center justify-between flex-wrap gap-2">
               <div>
-                <h2 className="text-base font-semibold text-[#111827] flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#047857]" />
+                <h2 className="text-base font-semibold text-[#111827]">
                   Cluster Geospatial Exposure Map
                 </h2>
                 <p className="text-sm text-[#6b7280] mt-0.5">
@@ -316,7 +308,8 @@ export const DashboardPage: React.FC = () => {
                 </p>
               </div>
               {/* Accessible Compact Legend */}
-              <div className="flex items-center gap-3 text-xs text-[#6b7280]">
+              <div className="flex items-center gap-3 text-xs text-[#6b7280] flex-wrap">
+                <span className="font-medium text-[#111827]">Exposure:</span>
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-[#b91c1c] inline-block" /> Critical (≥18)
                 </span>
@@ -332,7 +325,7 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="h-[420px] w-full relative">
+            <div className="command-center-map h-[420px] w-full relative">
               <MapContainer
                 center={[13.69, 75.245]}
                 zoom={13}
@@ -357,7 +350,10 @@ export const DashboardPage: React.FC = () => {
                         weight: selectedPlot?.id === plot.id ? 4 : 2,
                       }}
                       eventHandlers={{
-                        click: () => setSelectedPlotId(plot.id),
+                        click: () => {
+                          setSelectedPlotId(plot.id);
+                          setShowAllFactors(false);
+                        },
                       }}
                     >
                       <Popup>
@@ -390,24 +386,45 @@ export const DashboardPage: React.FC = () => {
 
             {/* Selected Plot Inspector Bar Restyled with Tokens */}
             {selectedPlot && (
-              <div className="p-4 bg-white border-t border-[#e5e7eb] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
-                <div>
+              <div className="p-4 bg-white border-t border-[#e5e7eb] flex flex-col sm:flex-row sm:items-start justify-between gap-3 text-sm">
+                <div className="flex-1 min-w-0">
                   <div className="font-semibold text-[#111827]">
                     Selected: {selectedPlot.code} — {selectedPlot.name} ({selectedPlot.area_acres} ac ·{' '}
                     <span className="capitalize font-normal text-[#6b7280]">{selectedPlot.priority}</span>)
                   </div>
-                  <div className="text-xs text-[#6b7280] mt-0.5">
-                    Why prioritized:{' '}
-                    {(selectedQueueItem?.factors || ['Combined wetness and low protection state']).join(
-                      ' · ',
-                    )}
+                  <div className="text-xs text-[#6b7280] mt-1.5">
+                    <span className="font-medium text-[#111827]">Why prioritized:</span>
+                    {(() => {
+                      const allFactors = (selectedQueueItem?.factors && selectedQueueItem.factors.length > 0)
+                        ? selectedQueueItem.factors
+                        : ['Combined wetness and low protection state'];
+                      const visibleFactors = showAllFactors ? allFactors : allFactors.slice(0, 3);
+                      return (
+                        <div className="mt-0.5 space-y-0.5">
+                          {visibleFactors.map((reason, idx) => (
+                            <div key={idx} className="line-clamp-1">
+                              • {reason}
+                            </div>
+                          ))}
+                          {allFactors.length > 3 && (
+                            <button
+                              type="button"
+                              onClick={() => setShowAllFactors(!showAllFactors)}
+                              className="mt-1 text-xs font-semibold text-[#047857] hover:underline cursor-pointer inline-block"
+                            >
+                              {showAllFactors ? 'Less' : `More (${allFactors.length - 3} more)`}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
                 <Link
                   to="/risk-twin"
-                  className="px-3 py-1.5 rounded-[6px] border border-[#e5e7eb] bg-white hover:bg-[#f9fafb] text-xs font-semibold text-[#111827] shrink-0 flex items-center gap-1 transition"
+                  className="px-3 py-1.5 rounded-[6px] border border-[#e5e7eb] bg-white hover:bg-[#f9fafb] text-xs font-semibold text-[#111827] shrink-0 flex items-center gap-1 transition self-start sm:self-center"
                 >
-                  Inspect Twin <ArrowRight className="w-3.5 h-3.5 text-[#6b7280]" />
+                  Inspect Twin
                 </Link>
               </div>
             )}
@@ -419,8 +436,7 @@ export const DashboardPage: React.FC = () => {
             className="lg:col-span-5 bg-white rounded-[6px] border border-[#e5e7eb] flex flex-col overflow-hidden"
           >
             <div className="p-4 border-b border-[#e5e7eb]">
-              <h2 className="text-base font-semibold text-[#111827] flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-[#b45309]" />
+              <h2 className="text-base font-semibold text-[#111827]">
                 Simulated Exposure Priority Queue
               </h2>
               <p className="text-sm text-[#6b7280] mt-0.5">
@@ -435,32 +451,59 @@ export const DashboardPage: React.FC = () => {
                     <th className="py-2.5 px-3 w-10 text-center font-medium">Rank</th>
                     <th className="py-2.5 px-3 font-medium">Plot</th>
                     <th className="py-2.5 px-2 font-medium">Area</th>
-                    <th className="py-2.5 px-2 font-medium">Urgency</th>
+                    <th className="py-2.5 px-2 font-medium">Priority</th>
                     <th className="py-2.5 px-2 text-right font-medium">Score</th>
-                    <th className="py-2.5 px-3 text-right font-medium">Mean / P90</th>
+                    <th className="py-2.5 px-3 text-right font-medium">Mean / P90 (wet h)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e5e7eb]">
-                  {queue.map((item) => {
-                    const plot = plots.find((p) => p.id === item.plot_id);
-                    const isSelected = selectedPlot?.id === item.plot_id;
-                    const urgencyDot =
-                      plot?.priority === 'urgent'
-                        ? 'bg-[#b91c1c]'
-                        : plot?.priority === 'high'
-                        ? 'bg-[#b45309]'
-                        : plot?.priority === 'medium'
-                        ? 'bg-[#2563eb]'
-                        : 'bg-[#047857]';
+                  {queue.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-sm text-[#6b7280]">
+                        {t(lang, 'no_plots_need_attention')}
+                      </td>
+                    </tr>
+                  ) : (
+                    queue.map((item) => {
+                      const plot = plots.find((p) => p.id === item.plot_id);
+                      const isSelected = selectedPlot?.id === item.plot_id;
+                      const urgencyDot =
+                        plot?.priority === 'urgent'
+                          ? 'bg-[#b91c1c]'
+                          : plot?.priority === 'high'
+                          ? 'bg-[#b45309]'
+                          : plot?.priority === 'medium'
+                          ? 'bg-[#2563eb]'
+                          : 'bg-[#047857]';
 
-                    return (
-                      <tr
-                        key={item.plot_id}
-                        onClick={() => setSelectedPlotId(item.plot_id)}
-                        className={`hover:bg-[#f9fafb] transition cursor-pointer ${
-                          isSelected ? 'bg-[#f0fdf4]' : ''
-                        }`}
-                      >
+                      return (
+                        <tr
+                          key={item.plot_id}
+                          aria-selected={isSelected}
+                          tabIndex={0}
+                          onClick={() => {
+                            setSelectedPlotId(item.plot_id);
+                            setShowAllFactors(false);
+                            const matchingAssignment = (activePlan?.assignments || []).find(
+                              (a) => a.plot_id === item.plot_id,
+                            );
+                            if (matchingAssignment) setSelectedAssignmentId(matchingAssignment.id);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setSelectedPlotId(item.plot_id);
+                              setShowAllFactors(false);
+                              const matchingAssignment = (activePlan?.assignments || []).find(
+                                (a) => a.plot_id === item.plot_id,
+                              );
+                              if (matchingAssignment) setSelectedAssignmentId(matchingAssignment.id);
+                            }
+                          }}
+                          className={`hover:bg-[#f9fafb] transition cursor-pointer focus:outline-none focus:bg-[#f9fafb] ${
+                            isSelected ? 'bg-[#f0fdf4]' : ''
+                          }`}
+                        >
                         <td className="py-3 px-3 text-center text-xs tabular-nums text-[#6b7280] font-medium">
                           {item.rank}
                         </td>
@@ -468,16 +511,19 @@ export const DashboardPage: React.FC = () => {
                           <div className="font-medium text-sm text-[#111827]">
                             {item.code} — {plot?.name || item.code}
                           </div>
-                          <div className="text-xs text-[#6b7280] truncate mt-0.5 max-w-[200px]">
-                            {(item.factors || []).slice(0, 2).join(' · ')}
+                          <div
+                            className="text-xs text-[#6b7280] line-clamp-2 mt-0.5"
+                            title={(item.factors || []).join(' · ')}
+                          >
+                            {(item.factors || []).join(' · ')}
                           </div>
                         </td>
                         <td className="py-3 px-2 text-xs text-[#111827] tabular-nums whitespace-nowrap">
                           {plot?.area_acres ?? '-'} ac
                         </td>
                         <td className="py-3 px-2 whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1.5 text-xs text-[#111827] capitalize">
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${urgencyDot}`} />
+                          <span className="inline-flex items-center gap-[6px] text-xs text-[#111827] capitalize">
+                            <span className={`w-[8px] h-[8px] rounded-full shrink-0 ${urgencyDot}`} />
                             {plot?.priority || 'normal'}
                           </span>
                         </td>
@@ -485,12 +531,13 @@ export const DashboardPage: React.FC = () => {
                           {item.score.toFixed(1)}
                         </td>
                         <td className="py-3 px-3 text-right text-xs text-[#6b7280] tabular-nums whitespace-nowrap">
-                          {item.exposure_hours_mean.toFixed(1)} / {item.exposure_hours_p90.toFixed(1)}h
+                          {item.exposure_hours_mean.toFixed(1)} / {item.exposure_hours_p90.toFixed(1)}
                         </td>
                       </tr>
                     );
-                  })}
-                </tbody>
+                  })
+                )}
+              </tbody>
               </table>
             </div>
           </div>
@@ -500,8 +547,7 @@ export const DashboardPage: React.FC = () => {
         <div className="bg-white rounded-[6px] border border-[#e5e7eb] p-4 space-y-4 dashboard-reveal-section">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h3 className="text-base font-semibold text-[#111827] flex items-center gap-2">
-                <CalendarClock className="w-4 h-4 text-[#047857]" />
+              <h3 className="text-base font-semibold text-[#111827]">
                 Upcoming Scheduled Operations (Plan #{activePlan?.id || '-'})
               </h3>
               <p className="text-sm text-[#6b7280] mt-0.5">
@@ -511,15 +557,15 @@ export const DashboardPage: React.FC = () => {
             <div className="flex items-center gap-2.5">
               <Link
                 to="/replanning"
-                className="px-3.5 py-1.5 rounded-[6px] border border-[#e5e7eb] bg-white hover:bg-[#f9fafb] text-[#111827] font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                className="px-3.5 py-1.5 rounded-[6px] border border-[#e5e7eb] bg-white hover:bg-[#f9fafb] text-[#111827] font-semibold text-xs transition cursor-pointer inline-flex items-center"
               >
-                <Compass className="w-3.5 h-3.5 text-[#6b7280]" /> Dynamic Replanning
+                Dynamic Replanning
               </Link>
               <Link
                 to="/gantt"
                 className="text-sm font-medium text-[#047857] hover:underline flex items-center gap-1"
               >
-                View full schedule <ArrowRight className="w-3.5 h-3.5" />
+                View full schedule
               </Link>
             </div>
           </div>
@@ -537,36 +583,57 @@ export const DashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
-                {(activePlan?.assignments || []).slice(0, 3).map((a) => (
-                  <tr key={a.id} className="hover:bg-[#f9fafb] transition">
-                    <td className="py-3 pr-3 font-medium text-[#111827]">
-                      <span className="font-mono text-xs text-[#6b7280] mr-2">
-                        {a.task_code}
-                      </span>
-                      {a.plot_code} ({a.plot_name})
-                    </td>
-                    <td className="py-3 pr-3 text-[#111827]">
-                      {a.crew_code} · {a.crew_name}
-                    </td>
-                    <td className="py-3 pr-3 font-mono text-xs text-[#6b7280]">
-                      Slot {a.start_slot}–{a.end_slot} ({a.duration_minutes}m)
-                    </td>
-                    <td className="py-3 pr-3 text-[#6b7280]">{a.travel_minutes}m</td>
-                    <td className="py-3 pr-3 font-semibold text-[#047857]">
-                      {a.window_probability ? `${(a.window_probability * 100).toFixed(0)}%` : '-'}
-                    </td>
-                    <td className="py-3">
-                      <span className="inline-flex items-center gap-1.5 text-xs text-[#111827]">
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                            a.frozen ? 'bg-[#6b7280]' : 'bg-[#047857]'
-                          }`}
-                        />
-                        {a.frozen ? `Frozen (${a.status})` : a.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {(activePlan?.assignments || []).slice(0, 3).map((a) => {
+                  const isSelected = selectedAssignmentId === a.id || selectedPlot?.id === a.plot_id;
+                  return (
+                    <tr
+                      key={a.id}
+                      aria-selected={isSelected}
+                      tabIndex={0}
+                      onClick={() => {
+                        setSelectedAssignmentId(a.id);
+                        if (a.plot_id) setSelectedPlotId(a.plot_id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedAssignmentId(a.id);
+                          if (a.plot_id) setSelectedPlotId(a.plot_id);
+                        }
+                      }}
+                      className={`hover:bg-[#f9fafb] transition cursor-pointer focus:outline-none focus:bg-[#f9fafb] ${
+                        isSelected ? 'bg-[#f0fdf4]' : ''
+                      }`}
+                    >
+                      <td className="py-3 pr-3 font-medium text-[#111827]">
+                        <span className="font-mono text-xs text-[#6b7280] mr-2">
+                          {a.task_code}
+                        </span>
+                        {a.plot_code} ({a.plot_name})
+                      </td>
+                      <td className="py-3 pr-3 text-[#111827]">
+                        {a.crew_code} · {a.crew_name}
+                      </td>
+                      <td className="py-3 pr-3 font-mono text-xs text-[#6b7280]">
+                        Slot {a.start_slot}–{a.end_slot} ({a.duration_minutes}m)
+                      </td>
+                      <td className="py-3 pr-3 text-[#6b7280]">{a.travel_minutes}m</td>
+                      <td className="py-3 pr-3 font-semibold text-[#047857]">
+                        {a.window_probability ? `${(a.window_probability * 100).toFixed(0)}%` : '-'}
+                      </td>
+                      <td className="py-3">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-[#111827]">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                              a.frozen ? 'bg-[#6b7280]' : 'bg-[#047857]'
+                            }`}
+                          />
+                          {a.frozen ? `Frozen (${a.status})` : a.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

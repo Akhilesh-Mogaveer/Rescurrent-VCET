@@ -1,12 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  CalendarCheck,
-  Clock,
-  CloudRain,
-  Droplets,
-  Sun,
-} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   apiRequest,
@@ -157,6 +150,7 @@ export const GrowerHomePage: React.FC = () => {
         heroTitle={t(lang, 'dashboard_title_farmer')}
         subtitle="Rain-aware advisory and protection schedule for your arecanut plots."
         offlineMode={offlineMode}
+        showCluster
       />
 
       {/* Single-Column Mobile-First Container (max-w-xl) */}
@@ -189,14 +183,13 @@ export const GrowerHomePage: React.FC = () => {
                   {t(lang, 'next_dry_window_title')}
                 </span>
                 <span className="text-xs text-stone-500 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" /> 48-Hour Forecast
+                  48-Hour Forecast
                 </span>
               </div>
 
               {nextWindow ? (
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <Sun className="w-7 h-7 text-amber-500 shrink-0 self-center" />
                     <div>
                       <div className="text-2xl sm:text-3xl font-extrabold text-stone-900 leading-tight">
                         {nextWindow.start_hour === 0
@@ -226,7 +219,6 @@ export const GrowerHomePage: React.FC = () => {
                 </div>
               ) : (
                 <div className="py-4 text-center text-stone-600 text-base">
-                  <CloudRain className="w-8 h-8 text-blue-500 mx-auto mb-2" />
                   <div className="font-semibold">Persistent Rainfall Expected</div>
                   <div className="text-sm text-stone-500 mt-1">
                     No safe dry spray window detected in the immediate forecast.
@@ -328,7 +320,7 @@ export const GrowerHomePage: React.FC = () => {
                       >
                         <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
                           <span className="font-semibold text-emerald-800 flex items-center gap-1">
-                            <CalendarCheck className="w-3.5 h-3.5" /> {dayLabel}
+                            {dayLabel}
                           </span>
                           <span>{timeRange}</span>
                         </div>
@@ -336,7 +328,6 @@ export const GrowerHomePage: React.FC = () => {
                           {formatTaskName(op.task_code)}
                         </div>
                         <div className="text-xs text-stone-600 mt-1 flex items-center gap-1.5">
-                          <Droplets className="w-3.5 h-3.5 text-stone-400" />
                           <span>
                             Target: <strong>{plot?.name || op.plot_name || op.plot_code}</strong> ({plot?.area_acres || op.plot_area_acres} acres)
                           </span>

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, Bell, Check, ExternalLink } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { apiRequest } from '../services/api';
 import {
@@ -109,7 +108,6 @@ export const NotificationsPage: React.FC = () => {
         {/* Notifications Column */}
         <div className="lg:col-span-6 bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-4">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-            <Bell className="w-4 h-4 text-emerald-700" />
             Operational Alerts & Notifications ({notifications.length})
           </h2>
 
@@ -151,15 +149,14 @@ export const NotificationsPage: React.FC = () => {
                           to={n.link}
                           className="font-semibold text-emerald-800 hover:underline flex items-center gap-1"
                         >
-                          Inspect <ExternalLink className="w-3 h-3" />
+                          Inspect
                         </Link>
                       )}
                       {!n.is_read && (
                         <button
                           onClick={() => handleMarkRead(n.id)}
                           className="px-2.5 py-1 rounded bg-[#0C1F17] text-white font-semibold flex items-center gap-1 cursor-pointer"
-                        >
-                          <Check className="w-3 h-3" /> Mark Read
+                        > Mark Read
                         </button>
                       )}
                     </div>
@@ -173,7 +170,6 @@ export const NotificationsPage: React.FC = () => {
         {/* Audit Trail Column */}
         <div className="lg:col-span-6 bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-4">
           <h2 className="text-sm font-bold text-[#17211C] flex items-center gap-2">
-            <Activity className="w-4 h-4 text-emerald-700" />
             Immutable Audit Log ({activity.length} Recent Events)
           </h2>
 
